@@ -1,14 +1,15 @@
 # AGQ Daemon
 
-AGQ Daemon is a local Go daemon for tracking Antigravity quota usage from the
-desktop language server.
+AGQ Daemon tracks Antigravity AI quota usage from the local language server.
 
-The first milestone is a small process monitor that can find an authenticated
-language server and persist the latest quota snapshot locally.
+Current runtime flow:
 
-## Development
+1. Scan `/proc/*/cmdline` for authenticated Antigravity language servers.
+2. Poll `GetUserStatus` on the detected loopback port.
+3. Store quota snapshots for the active account.
+
+Run locally with:
 
 ```sh
-make build
-make test
+make run
 ```
