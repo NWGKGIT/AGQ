@@ -1,15 +1,13 @@
 # AGQ Daemon
 
-AGQ Daemon tracks Antigravity AI quota usage from the local language server.
+AGQ Daemon tracks Antigravity AI quota usage from the local language server and
+stores snapshots in SQLite under `~/.agq/agq.db`.
 
-Current runtime flow:
-
-1. Scan `/proc/*/cmdline` for authenticated Antigravity language servers.
-2. Poll `GetUserStatus` on the detected loopback port.
-3. Store quota snapshots for the active account.
-
-Run locally with:
+The database keeps accounts, snapshots, and per-model quota rows. WAL mode is
+enabled so dashboard readers can query while the daemon writes.
 
 ```sh
+make build
+make test
 make run
 ```
