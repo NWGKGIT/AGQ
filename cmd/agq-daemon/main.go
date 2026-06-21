@@ -9,18 +9,15 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
-	"time"
 
+	"agq-daemon/internal/api"
 	"agq-daemon/internal/detector"
 	"agq-daemon/internal/domain"
 	"agq-daemon/internal/languageserver"
 	"agq-daemon/internal/poller"
 	"agq-daemon/internal/state"
+	"agq-daemon/internal/store"
 )
-
-type memoryStore struct{}
-
-func (memoryStore) SaveSnapshot(domain.QuotaSnapshot) error { return nil }
 
 func main() {
 	if err := run(); err != nil {
@@ -42,6 +39,13 @@ func run() error {
 	defer logFile.Close()
 	slog.SetDefault(logger)
 
+	db, err := store.Open(filepath.Join(agqDir, "agq.db"))
+	if err != nil {
+		return fmt.Errorf("open database: %w", err)
+	}
+	defer db.Close()
+
+	appState := state.New()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	watchSignals(ctx, cancel, logger)
@@ -49,13 +53,13 @@ func run() error {
 	infoCh := make(chan []*domain.ProcessInfo, 1)
 	scanner := detector.New(logger)
 	quotaClient := languageserver.NewClient(languageserver.RequestTimeout)
-	quotaPoller := poller.New(memoryStore{}, state.New(), quotaClient, poller.Config{Logger: logger})
+	quotaPoller := poller.New(db, appState, quotaClient, poller.Config{Logger: logger})
 
 	go scanner.Run(ctx, infoCh)
 	go quotaPoller.Run(ctx, infoCh)
 
-	<-ctx.Done()
-	return nil
+	server := api.New(db, appState, api.WithLogger(logger))
+	return server.Run(ctx, "localhost:"+envDefault("AGQ_PORT", "7432"))
 }
 
 func ensureAGQDir() (string, error) {
@@ -99,5 +103,3 @@ func envDefault(key, fallback string) string {
 	}
 	return fallback
 }
-
-var _ = time.Second
