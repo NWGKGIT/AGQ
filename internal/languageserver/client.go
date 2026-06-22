@@ -15,16 +15,22 @@ import (
 )
 
 const (
+	// RequestTimeout is the default timeout for regular quota polls.
 	RequestTimeout = 10 * time.Second
+
+	// ProbeTimeout is the default timeout for discovering the active port.
+	ProbeTimeout = 2 * time.Second
 
 	getUserStatusPath = "/exa.language_server_pb.LanguageServerService/GetUserStatus"
 	requestBody       = `{"metadata":{"ideName":"antigravity","extensionName":"antigravity","ideVersion":"1.0.0","locale":"en"}}`
 )
 
+// Client wraps HTTP access to the local language server.
 type Client struct {
 	httpClient *http.Client
 }
 
+// NewClient creates a language-server client with the provided request timeout.
 func NewClient(timeout time.Duration) *Client {
 	if timeout <= 0 {
 		timeout = RequestTimeout
@@ -32,6 +38,7 @@ func NewClient(timeout time.Duration) *Client {
 	return &Client{httpClient: newHTTPClient(timeout)}
 }
 
+// FetchSnapshot calls GetUserStatus for one detected language server process.
 func (c *Client) FetchSnapshot(ctx context.Context, info *domain.ProcessInfo) (*domain.QuotaSnapshot, error) {
 	url := endpointURL(info.Scheme, info.ActivePort)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBufferString(requestBody))
@@ -57,6 +64,20 @@ func (c *Client) FetchSnapshot(ctx context.Context, info *domain.ProcessInfo) (*
 	return ParseSnapshot(body, time.Now())
 }
 
+// ProbeActivePort tries each candidate port over HTTPS then HTTP and returns
+// the first port that responds with a valid GetUserStatus payload.
+func (c *Client) ProbeActivePort(ports []int, csrfToken string) (activePort int, scheme string) {
+	for _, port := range ports {
+		for _, s := range []string{"https", "http"} {
+			if c.probePort(port, s, csrfToken) {
+				return port, s
+			}
+		}
+	}
+	return 0, ""
+}
+
+// ParseSnapshot converts a GetUserStatus JSON response into a quota snapshot.
 func ParseSnapshot(body []byte, capturedAt time.Time) (*domain.QuotaSnapshot, error) {
 	var raw userStatusResponse
 	if err := json.Unmarshal(body, &raw); err != nil {
@@ -89,6 +110,7 @@ func ParseSnapshot(body []byte, capturedAt time.Time) (*domain.QuotaSnapshot, er
 			Label:   cfg.Label,
 			ModelID: cfg.ModelOrAlias.Model,
 		}
+
 		if cfg.QuotaInfo.RemainingFraction != nil {
 			frac := *cfg.QuotaInfo.RemainingFraction
 			pct := frac * 100
@@ -98,6 +120,7 @@ func ParseSnapshot(body []byte, capturedAt time.Time) (*domain.QuotaSnapshot, er
 		} else {
 			m.IsExhausted = true
 		}
+
 		if cfg.QuotaInfo.ResetTime != "" {
 			if t, err := time.Parse(time.RFC3339, cfg.QuotaInfo.ResetTime); err == nil {
 				m.ResetTime = &t
@@ -106,9 +129,40 @@ func ParseSnapshot(body []byte, capturedAt time.Time) (*domain.QuotaSnapshot, er
 				m.TimeUntilResetMs = &ms
 			}
 		}
+
 		snap.Models = append(snap.Models, m)
 	}
+
 	return snap, nil
+}
+
+func (c *Client) probePort(port int, scheme, csrfToken string) bool {
+	req, err := http.NewRequest(http.MethodPost, endpointURL(scheme, port), bytes.NewBufferString(requestBody))
+	if err != nil {
+		return false
+	}
+	setGetUserStatusHeaders(req, csrfToken)
+
+	resp, err := c.client().Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return false
+	}
+
+	var result userStatusResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return false
+	}
+	return result.UserStatus.Email != ""
 }
 
 func (c *Client) client() *http.Client {
@@ -144,6 +198,8 @@ func truncate(s string, n int) string {
 	return s[:n] + "..."
 }
 
+// flexInt64 unmarshals a JSON value that may be either a number or a quoted
+// decimal string. Antigravity returns either form depending on tier.
 type flexInt64 int64
 
 func (f *flexInt64) UnmarshalJSON(b []byte) error {
