@@ -67,12 +67,13 @@ func (s *Scanner) ScanAll() []*domain.ProcessInfo {
 		return nil
 	}
 
+	var results []*domain.ProcessInfo
 	for _, path := range entries {
 		if info, ok := s.tryParsePID(path); ok {
-			return []*domain.ProcessInfo{info}
+			results = append(results, info)
 		}
 	}
-	return nil
+	return results
 }
 
 func sendUpdate(ctx context.Context, out chan<- []*domain.ProcessInfo, infos []*domain.ProcessInfo) {
