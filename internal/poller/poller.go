@@ -3,31 +3,41 @@ package poller
 import (
 	"context"
 	"log/slog"
+	"sort"
 	"time"
 
 	"agq-daemon/internal/domain"
 )
 
 const (
-	DefaultNormalInterval  = 60 * time.Second
+	// DefaultNormalInterval is the normal polling cadence while active.
+	DefaultNormalInterval = 60 * time.Second
+
+	// DefaultBackoffInterval is used after consecutive all-failure cycles.
 	DefaultBackoffInterval = 5 * time.Minute
-	DefaultMaxFailures     = 5
+
+	// DefaultMaxFailures is the number of all-failure cycles before backoff.
+	DefaultMaxFailures = 5
 )
 
+// SnapshotStore persists quota snapshots.
 type SnapshotStore interface {
 	SaveSnapshot(domain.QuotaSnapshot) error
 }
 
+// StatusWriter updates daemon status.
 type StatusWriter interface {
 	SetActive(emails []string)
 	SetIdle()
 	SetPollTimes(last, next time.Time)
 }
 
+// SnapshotFetcher fetches one quota snapshot from a detected language server.
 type SnapshotFetcher interface {
 	FetchSnapshot(ctx context.Context, info *domain.ProcessInfo) (*domain.QuotaSnapshot, error)
 }
 
+// Config controls poller timing and logging.
 type Config struct {
 	NormalInterval  time.Duration
 	BackoffInterval time.Duration
@@ -35,6 +45,7 @@ type Config struct {
 	Logger          *slog.Logger
 }
 
+// Poller consumes detector updates and stores quota snapshots.
 type Poller struct {
 	store   SnapshotStore
 	state   StatusWriter
@@ -42,51 +53,181 @@ type Poller struct {
 	config  Config
 }
 
+// New creates a Poller.
 func New(store SnapshotStore, state StatusWriter, fetcher SnapshotFetcher, config Config) *Poller {
-	return &Poller{store: store, state: state, fetcher: fetcher, config: config.withDefaults()}
+	return &Poller{
+		store:   store,
+		state:   state,
+		fetcher: fetcher,
+		config:  config.withDefaults(),
+	}
 }
 
+// Run watches detector updates until ctx is cancelled or the info channel is
+// closed.
 func (p *Poller) Run(ctx context.Context, info <-chan []*domain.ProcessInfo) {
-	var current *domain.ProcessInfo
-	ticker := time.NewTicker(p.config.NormalInterval)
-	defer ticker.Stop()
+	var (
+		current         []*domain.ProcessInfo
+		failures        int
+		pollTicker      *time.Ticker
+		pollCh          <-chan time.Time
+		currentInterval = p.config.NormalInterval
+	)
+
+	stopTicker := func() {
+		if pollTicker != nil {
+			pollTicker.Stop()
+			pollTicker = nil
+			pollCh = nil
+		}
+	}
+	startTicker := func(d time.Duration) {
+		stopTicker()
+		currentInterval = d
+		pollTicker = time.NewTicker(d)
+		pollCh = pollTicker.C
+	}
 
 	for {
 		select {
 		case <-ctx.Done():
+			stopTicker()
 			return
+
 		case update, ok := <-info:
 			if !ok {
+				stopTicker()
 				return
 			}
 			if len(update) == 0 {
+				if len(current) > 0 {
+					p.logger().Info("poller: all language servers gone; going idle")
+					p.state.SetIdle()
+					stopTicker()
+					failures = 0
+				}
 				current = nil
-				p.state.SetIdle()
 				continue
 			}
-			current = update[0]
-			p.poll(ctx, current)
-		case <-ticker.C:
-			if current != nil {
-				p.poll(ctx, current)
+
+			wasEmpty := len(current) == 0
+			pidsChanged := !wasEmpty && pidSetChanged(current, update)
+			current = update
+			switch {
+			case wasEmpty:
+				p.logger().Info("poller: language server(s) detected; going active", "count", len(update))
+				failures = 0
+				startTicker(p.config.NormalInterval)
+				p.pollAllProcesses(ctx, current, &failures, startTicker, currentInterval)
+			case pidsChanged:
+				// A new set of PIDs while already active means Antigravity
+				// spawned a fresh language server (e.g. an account switch).
+				// Treat it like a new IDLE->ACTIVE transition so we poll the
+				// new process immediately instead of waiting for the next tick.
+				p.logger().Info("poller: process set changed; re-polling immediately", "count", len(update))
+				failures = 0
+				startTicker(p.config.NormalInterval)
+				p.pollAllProcesses(ctx, current, &failures, startTicker, currentInterval)
+			default:
+				p.logger().Debug("poller: process list refreshed", "count", len(update))
 			}
+
+		case <-pollCh:
+			if len(current) == 0 {
+				continue
+			}
+			if failures >= p.config.MaxFailures {
+				currentInterval = p.config.BackoffInterval
+			} else {
+				currentInterval = p.config.NormalInterval
+			}
+			p.pollAllProcesses(ctx, current, &failures, startTicker, currentInterval)
 		}
 	}
 }
 
-func (p *Poller) poll(ctx context.Context, info *domain.ProcessInfo) {
-	snap, err := p.fetcher.FetchSnapshot(ctx, info)
-	if err != nil {
-		p.logger().Warn("poller: poll failed", "pid", info.Pid, "err", err)
+func (p *Poller) pollAllProcesses(
+	ctx context.Context,
+	infos []*domain.ProcessInfo,
+	failures *int,
+	startTicker func(time.Duration),
+	currentInterval time.Duration,
+) {
+	results := make(map[string]*domain.QuotaSnapshot, len(infos))
+
+	for _, info := range infos {
+		snap, err := p.fetcher.FetchSnapshot(ctx, info)
+		if err != nil {
+			p.logger().Warn("poller: poll failed",
+				"pid", info.Pid,
+				"port", info.ActivePort,
+				"err", err)
+			continue
+		}
+		results[snap.Email] = snap
+	}
+
+	if len(results) == 0 {
+		*failures++
+		p.logger().Warn("poller: all polls failed", "consecutive_failures", *failures)
+		if *failures >= p.config.MaxFailures {
+			p.logger().Warn("poller: backing off", "interval", p.config.BackoffInterval)
+			startTicker(p.config.BackoffInterval)
+		}
 		return
 	}
-	if err := p.store.SaveSnapshot(*snap); err != nil {
-		p.logger().Warn("poller: save snapshot failed", "email", snap.Email, "err", err)
-		return
+
+	nextInterval := currentInterval
+	if *failures >= p.config.MaxFailures {
+		p.logger().Info("poller: polls recovered; resuming normal interval")
+		startTicker(p.config.NormalInterval)
+		nextInterval = p.config.NormalInterval
 	}
+	*failures = 0
+
+	emails := make([]string, 0, len(results))
+	for email, snap := range results {
+		if err := p.store.SaveSnapshot(*snap); err != nil {
+			p.logger().Warn("poller: save snapshot failed", "email", email, "err", err)
+			continue
+		}
+		emails = append(emails, email)
+		p.logger().Info("poller: snapshot saved",
+			"email", email,
+			"prompt_avail", snap.PromptCreditsAvailable,
+			"flow_avail", snap.FlowCreditsAvailable,
+			"models", len(snap.Models))
+	}
+
+	sort.Strings(emails)
 	now := time.Now()
-	p.state.SetActive([]string{snap.Email})
-	p.state.SetPollTimes(now, now.Add(p.config.NormalInterval))
+	p.state.SetActive(emails)
+	p.state.SetPollTimes(now, now.Add(nextInterval))
+}
+
+// pidSetChanged reports whether the set of PIDs in next differs from prev,
+// ignoring ordering. A differing length or any PID not present in both is
+// treated as a change.
+func pidSetChanged(prev, next []*domain.ProcessInfo) bool {
+	if len(prev) != len(next) {
+		return true
+	}
+	prevPids := make([]int, len(prev))
+	nextPids := make([]int, len(next))
+	for i := range prev {
+		prevPids[i] = prev[i].Pid
+	}
+	for i := range next {
+		nextPids[i] = next[i].Pid
+	}
+	sort.Ints(prevPids)
+	sort.Ints(nextPids)
+	for i := range prevPids {
+		if prevPids[i] != nextPids[i] {
+			return true
+		}
+	}
+	return false
 }
 
 func (c Config) withDefaults() Config {
