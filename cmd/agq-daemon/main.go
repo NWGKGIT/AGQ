@@ -39,19 +39,27 @@ func run() error {
 	defer logFile.Close()
 	slog.SetDefault(logger)
 
+	logger.Info("agq-daemon starting", "agq_dir", agqDir)
+
 	db, err := store.Open(filepath.Join(agqDir, "agq.db"))
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
 	defer db.Close()
+	logger.Info("database ready", "path", filepath.Join(agqDir, "agq.db"))
 
 	appState := state.New()
+	addr := "localhost:" + envDefault("AGQ_PORT", "7432")
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	watchSignals(ctx, cancel, logger)
 
 	infoCh := make(chan []*domain.ProcessInfo, 1)
-	scanner := detector.New(logger)
+
+	probeClient := languageserver.NewClient(languageserver.ProbeTimeout)
+	scanner := detector.New(probeClient, logger)
+
 	quotaClient := languageserver.NewClient(languageserver.RequestTimeout)
 	quotaPoller := poller.New(db, appState, quotaClient, poller.Config{Logger: logger})
 
@@ -59,7 +67,7 @@ func run() error {
 	go quotaPoller.Run(ctx, infoCh)
 
 	server := api.New(db, appState, api.WithLogger(logger))
-	return server.Run(ctx, "localhost:"+envDefault("AGQ_PORT", "7432"))
+	return server.Run(ctx, addr)
 }
 
 func ensureAGQDir() (string, error) {
@@ -67,6 +75,7 @@ func ensureAGQDir() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("determine home directory: %w", err)
 	}
+
 	agqDir := filepath.Join(home, ".agq")
 	if err := os.MkdirAll(agqDir, 0o755); err != nil {
 		return "", fmt.Errorf("create %s: %w", agqDir, err)
@@ -79,13 +88,18 @@ func setupLogger(logPath string) (*os.File, *slog.Logger, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("open log file %s: %w", logPath, err)
 	}
-	logger := slog.New(slog.NewJSONHandler(io.MultiWriter(os.Stderr, logFile), nil))
+
+	logWriter := io.MultiWriter(os.Stderr, logFile)
+	logger := slog.New(slog.NewJSONHandler(logWriter, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
 	return logFile, logger, nil
 }
 
 func watchSignals(ctx context.Context, cancel context.CancelFunc, logger *slog.Logger) {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM, syscall.SIGINT)
+
 	go func() {
 		select {
 		case sig := <-sigs:
