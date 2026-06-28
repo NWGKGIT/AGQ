@@ -1,0 +1,15 @@
+[Unit]
+Description=AGQ Daemon — Antigravity Quota Monitor
+After=network.target graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/agq-daemon
+Restart=always
+RestartSec=5
+StandardOutput=append:%h/.agq/agq.log
+StandardError=append:%h/.agq/agq.log
+Environment=HOME=%h
+
+[Install]
+WantedBy=default.target
