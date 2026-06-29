@@ -16,18 +16,27 @@ import (
 
 var localhostOrigin = regexp.MustCompile(`^https?://(localhost|127\.0\.0\.1)(:\d+)?$`)
 
+// Store is the persistence surface used by API handlers.
 type Store interface {
 	GetAllAccounts() ([]domain.AccountSummary, error)
 	GetAccount(email string) (*domain.AccountSummary, error)
 	GetLatestSnapshot(email string) (*domain.QuotaSnapshot, error)
 	GetSnapshotHistory(email string, limit int, before time.Time) ([]domain.QuotaSnapshot, error)
 	GetLatestModelQuotas() ([]domain.ModelQuotaAggregate, error)
+	GetFractionSamplesSince(since time.Time) ([]domain.FractionSample, error)
+	GetAccountFractionSamplesSince(email string, since time.Time) ([]domain.FractionSample, error)
+	GetBreakdown() ([]domain.BreakdownRow, error)
+	GetAnalyticsStats(now time.Time) (domain.AnalyticsStats, error)
+	GetSnapshotRefsSince(email string, since time.Time) ([]domain.SnapshotRef, error)
+	GetSnapshotModels(snapshotID int64) ([]domain.ModelQuota, error)
 }
 
+// StatusProvider returns the current daemon status.
 type StatusProvider interface {
 	Snapshot() domain.DaemonStatus
 }
 
+// Server owns the API handler dependencies.
 type Server struct {
 	store  Store
 	status StatusProvider
@@ -35,18 +44,31 @@ type Server struct {
 	now    func() time.Time
 }
 
+// Option customizes a Server.
 type Option func(*Server)
 
+// WithLogger sets the logger used for server lifecycle and encoding warnings.
 func WithLogger(logger *slog.Logger) Option {
-	return func(s *Server) { s.logger = logger }
+	return func(s *Server) {
+		s.logger = logger
+	}
 }
 
+// WithClock sets the clock used to compute response staleness.
 func WithClock(now func() time.Time) Option {
-	return func(s *Server) { s.now = now }
+	return func(s *Server) {
+		s.now = now
+	}
 }
 
+// New creates an API server.
 func New(store Store, status StatusProvider, opts ...Option) *Server {
-	s := &Server{store: store, status: status, logger: slog.Default(), now: time.Now}
+	s := &Server{
+		store:  store,
+		status: status,
+		logger: slog.Default(),
+		now:    time.Now,
+	}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -59,6 +81,7 @@ func New(store Store, status StatusProvider, opts ...Option) *Server {
 	return s
 }
 
+// Handler returns the complete HTTP handler tree.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", s.healthHandler)
@@ -67,12 +90,22 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/account/current", s.currentAccountHandler)
 	mux.HandleFunc("GET /api/accounts/{email}/latest", s.accountLatestHandler)
 	mux.HandleFunc("GET /api/accounts/{email}/snapshots", s.accountSnapshotsHandler)
+	mux.HandleFunc("GET /api/accounts/{email}/sparklines", s.accountSparklinesHandler)
+	mux.HandleFunc("GET /api/accounts/{email}/timeline", s.accountTimelineHandler)
 	mux.HandleFunc("GET /api/models/latest", s.modelsLatestHandler)
+	mux.HandleFunc("GET /api/analytics/timeseries", s.analyticsTimeseriesHandler)
+	mux.HandleFunc("GET /api/analytics/breakdown", s.analyticsBreakdownHandler)
+	mux.HandleFunc("GET /api/analytics/stats", s.analyticsStatsHandler)
 	return corsMiddleware(mux)
 }
 
+// Run starts the HTTP API on addr and blocks until ctx is cancelled.
 func (s *Server) Run(ctx context.Context, addr string) error {
-	httpSrv := &http.Server{Addr: addr, Handler: s.Handler()}
+	httpSrv := &http.Server{
+		Addr:    addr,
+		Handler: s.Handler(),
+	}
+
 	done := make(chan struct{})
 	go func() {
 		select {
@@ -85,6 +118,7 @@ func (s *Server) Run(ctx context.Context, addr string) error {
 		case <-done:
 		}
 	}()
+
 	s.logger.Info("api: listening", "addr", addr)
 	err := httpSrv.ListenAndServe()
 	close(done)
@@ -115,6 +149,9 @@ type accountResponse struct {
 	LatestSnapshot *snapshotResponse `json:"latest_snapshot,omitempty"`
 }
 
+// currentAccountResponse describes the account(s) the daemon is currently
+// polling, i.e. the account(s) presently logged in to Antigravity. It reflects
+// live daemon state joined with the newest persisted snapshot for each account.
 type currentAccountResponse struct {
 	State      domain.DaemonState `json:"state"`
 	Email      string             `json:"email,omitempty"`
@@ -126,14 +163,17 @@ type currentAccountResponse struct {
 
 func (s *Server) currentAccountHandler(w http.ResponseWriter, r *http.Request) {
 	status := s.status.Snapshot()
+
 	resp := currentAccountResponse{
 		State:      status.State,
 		Accounts:   []accountResponse{},
 		LastPollAt: status.LastPollAt,
 		AsOf:       s.now().UTC(),
 	}
+
 	for _, email := range status.Emails {
 		ar := accountResponse{Email: email}
+
 		account, err := s.store.GetAccount(email)
 		if err != nil {
 			s.writeError(w, http.StatusInternalServerError, "failed to query account", err)
@@ -145,27 +185,40 @@ func (s *Server) currentAccountHandler(w http.ResponseWriter, r *http.Request) {
 			ar.FirstSeen = account.FirstSeen
 			ar.LastSeen = account.LastSeen
 		}
+
 		snap, err := s.store.GetLatestSnapshot(email)
 		if err != nil {
 			s.writeError(w, http.StatusInternalServerError, "failed to query latest snapshot", err)
 			return
 		}
 		if snap != nil {
+			if ar.PlanName == "" {
+				ar.PlanName = snap.PlanName
+			}
 			sr := s.toSnapshotResponse(snap)
 			ar.LatestSnapshot = &sr
 		}
+
 		resp.Accounts = append(resp.Accounts, ar)
 	}
+
+	// Antigravity is logged in to one account at a time; surface the first
+	// active account directly for convenience while still returning the full
+	// list for the rare multi-server case.
 	if len(resp.Accounts) > 0 {
 		resp.Email = resp.Accounts[0].Email
 		resp.Account = &resp.Accounts[0]
 	}
+
 	s.writeJSON(w, http.StatusOK, resp)
 }
 
 func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 	st := s.status.Snapshot()
-	s.writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "uptime": st.Uptime})
+	s.writeJSON(w, http.StatusOK, map[string]string{
+		"status": "ok",
+		"uptime": st.Uptime,
+	})
 }
 
 func (s *Server) statusHandler(w http.ResponseWriter, r *http.Request) {
@@ -178,9 +231,16 @@ func (s *Server) accountsHandler(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, "failed to query accounts", err)
 		return
 	}
+
 	out := make([]accountResponse, 0, len(accounts))
 	for _, a := range accounts {
-		ar := accountResponse{ID: a.ID, Email: a.Email, PlanName: a.PlanName, FirstSeen: a.FirstSeen, LastSeen: a.LastSeen}
+		ar := accountResponse{
+			ID:        a.ID,
+			Email:     a.Email,
+			PlanName:  a.PlanName,
+			FirstSeen: a.FirstSeen,
+			LastSeen:  a.LastSeen,
+		}
 		snap, err := s.store.GetLatestSnapshot(a.Email)
 		if err != nil {
 			s.writeError(w, http.StatusInternalServerError, "failed to query latest snapshot", err)
@@ -192,7 +252,10 @@ func (s *Server) accountsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		out = append(out, ar)
 	}
-	s.writeJSON(w, http.StatusOK, map[string]any{"accounts": out})
+
+	s.writeJSON(w, http.StatusOK, map[string]any{
+		"accounts": out,
+	})
 }
 
 func (s *Server) accountLatestHandler(w http.ResponseWriter, r *http.Request) {
@@ -211,6 +274,7 @@ func (s *Server) accountLatestHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) accountSnapshotsHandler(w http.ResponseWriter, r *http.Request) {
 	email := r.PathValue("email")
+
 	limit := 50
 	if rawLimit := r.URL.Query().Get("limit"); rawLimit != "" {
 		n, err := strconv.Atoi(rawLimit)
@@ -220,6 +284,7 @@ func (s *Server) accountSnapshotsHandler(w http.ResponseWriter, r *http.Request)
 		}
 		limit = n
 	}
+
 	var before time.Time
 	if rawBefore := r.URL.Query().Get("before"); rawBefore != "" {
 		t, err := time.Parse(time.RFC3339, rawBefore)
@@ -229,16 +294,22 @@ func (s *Server) accountSnapshotsHandler(w http.ResponseWriter, r *http.Request)
 		}
 		before = t
 	}
+
 	snaps, err := s.store.GetSnapshotHistory(email, limit, before)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, "failed to query snapshots", err)
 		return
 	}
+
 	out := make([]snapshotResponse, 0, len(snaps))
 	for i := range snaps {
 		out = append(out, s.toSnapshotResponse(&snaps[i]))
 	}
-	s.writeJSON(w, http.StatusOK, map[string]any{"email": email, "snapshots": out})
+
+	s.writeJSON(w, http.StatusOK, map[string]any{
+		"email":     email,
+		"snapshots": out,
+	})
 }
 
 func (s *Server) modelsLatestHandler(w http.ResponseWriter, r *http.Request) {
@@ -247,7 +318,9 @@ func (s *Server) modelsLatestHandler(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, "failed to query model quotas", err)
 		return
 	}
-	s.writeJSON(w, http.StatusOK, map[string]any{"models": nilSafeSlice(models)})
+	s.writeJSON(w, http.StatusOK, map[string]any{
+		"models": nilSafeSlice(models),
+	})
 }
 
 func (s *Server) toSnapshotResponse(snapshot *domain.QuotaSnapshot) snapshotResponse {
@@ -296,7 +369,10 @@ func (s *Server) writeError(w http.ResponseWriter, status int, msg string, err e
 	if err != nil {
 		detail = strings.ReplaceAll(err.Error(), "/home/", "~/")
 	}
-	s.writeJSON(w, status, map[string]string{"error": msg, "detail": detail})
+	s.writeJSON(w, status, map[string]string{
+		"error":  msg,
+		"detail": detail,
+	})
 }
 
 func nilSafeSlice[T any](s []T) []T {
