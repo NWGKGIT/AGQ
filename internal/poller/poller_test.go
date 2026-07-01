@@ -82,7 +82,7 @@ func TestRunSetsIdleWhenProcessesDisappear(t *testing.T) {
 	<-done
 }
 
-func TestRunRepollsWhenPidSetChanges(t *testing.T) {
+func TestRunRepollsAfterAuthSettleDelayWhenPidSetChanges(t *testing.T) {
 	store := &memoryStore{}
 	status := &memoryStatus{}
 	fetcher := &fakeFetcher{
@@ -92,7 +92,11 @@ func TestRunRepollsWhenPidSetChanges(t *testing.T) {
 		},
 	}
 	// Long interval so any re-poll must come from the PID change, not a tick.
-	p := New(store, status, fetcher, Config{NormalInterval: time.Hour})
+	// Short auth settle delay so the test doesn't wait the real 25s default.
+	p := New(store, status, fetcher, Config{
+		NormalInterval:  time.Hour,
+		AuthSettleDelay: 10 * time.Millisecond,
+	})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -108,6 +112,13 @@ func TestRunRepollsWhenPidSetChanges(t *testing.T) {
 
 	// Account switch: Antigravity spawns a new language server with a new PID.
 	infoCh <- []*domain.ProcessInfo{{Pid: 2}}
+
+	// The re-poll must not happen immediately; it waits for the auth settle delay.
+	time.Sleep(2 * time.Millisecond)
+	if got := store.savedCount(); got != 1 {
+		t.Fatalf("savedCount = %d, want 1 (no poll before auth settle delay elapses)", got)
+	}
+
 	waitFor(t, func() bool { return store.savedCount() == 2 })
 	waitFor(t, func() bool { return slices.Equal(status.emails(), []string{"new@example.com"}) })
 
