@@ -18,12 +18,6 @@ const (
 
 	// DefaultMaxFailures is the number of all-failure cycles before backoff.
 	DefaultMaxFailures = 5
-
-	// AuthSettleDelay is how long the poller waits before its first poll of
-	// a newly detected process set while already ACTIVE. This gives a freshly
-	// spawned language server time to finish its OAuth handshake so the
-	// poller doesn't capture stale session data.
-	AuthSettleDelay = 25 * time.Second
 )
 
 // SnapshotStore persists quota snapshots.
@@ -48,7 +42,6 @@ type Config struct {
 	NormalInterval  time.Duration
 	BackoffInterval time.Duration
 	MaxFailures     int
-	AuthSettleDelay time.Duration
 	Logger          *slog.Logger
 }
 
@@ -79,8 +72,6 @@ func (p *Poller) Run(ctx context.Context, info <-chan []*domain.ProcessInfo) {
 		pollTicker      *time.Ticker
 		pollCh          <-chan time.Time
 		currentInterval = p.config.NormalInterval
-		authSettleTimer *time.Timer
-		authSettleCh    <-chan time.Time
 	)
 
 	stopTicker := func() {
@@ -96,25 +87,16 @@ func (p *Poller) Run(ctx context.Context, info <-chan []*domain.ProcessInfo) {
 		pollTicker = time.NewTicker(d)
 		pollCh = pollTicker.C
 	}
-	stopAuthSettle := func() {
-		if authSettleTimer != nil {
-			authSettleTimer.Stop()
-			authSettleTimer = nil
-			authSettleCh = nil
-		}
-	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			stopTicker()
-			stopAuthSettle()
 			return
 
 		case update, ok := <-info:
 			if !ok {
 				stopTicker()
-				stopAuthSettle()
 				return
 			}
 			if len(update) == 0 {
@@ -122,7 +104,6 @@ func (p *Poller) Run(ctx context.Context, info <-chan []*domain.ProcessInfo) {
 					p.logger().Info("poller: all language servers gone; going idle")
 					p.state.SetIdle()
 					stopTicker()
-					stopAuthSettle()
 					failures = 0
 				}
 				current = nil
@@ -141,25 +122,13 @@ func (p *Poller) Run(ctx context.Context, info <-chan []*domain.ProcessInfo) {
 			case pidsChanged:
 				// A new set of PIDs while already active means Antigravity
 				// spawned a fresh language server (e.g. an account switch).
-				// Wait for it to finish its OAuth handshake before polling,
-				// so we don't capture stale session data from a server that
-				// hasn't authenticated yet.
 				p.logger().Info("poller: process set changed", "count", len(update))
-				p.logger().Info("poller: waiting for language server auth", "delay", p.config.AuthSettleDelay)
 				failures = 0
-				stopTicker()
-				stopAuthSettle()
-				authSettleTimer = time.NewTimer(p.config.AuthSettleDelay)
-				authSettleCh = authSettleTimer.C
+				startTicker(p.config.NormalInterval)
+				p.pollAllProcesses(ctx, current, &failures, startTicker, currentInterval)
 			default:
 				p.logger().Debug("poller: process list refreshed", "count", len(update))
 			}
-
-		case <-authSettleCh:
-			authSettleTimer = nil
-			authSettleCh = nil
-			startTicker(p.config.NormalInterval)
-			p.pollAllProcesses(ctx, current, &failures, startTicker, currentInterval)
 
 		case <-pollCh:
 			if len(current) == 0 {
@@ -268,9 +237,6 @@ func (c Config) withDefaults() Config {
 	}
 	if c.MaxFailures <= 0 {
 		c.MaxFailures = DefaultMaxFailures
-	}
-	if c.AuthSettleDelay <= 0 {
-		c.AuthSettleDelay = AuthSettleDelay
 	}
 	return c
 }
