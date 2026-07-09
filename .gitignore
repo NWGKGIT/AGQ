@@ -1,18 +1,37 @@
+# Binaries
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
-*.test
 *.out
+
+# Go build output (covers your daemon binary)
+/bin/
+/dist/
+/build/
+
+# Service binary (common names — adjust if yours differs)
+*.service.bin
+*-daemon
+*-service
+
+# Go-specific
+*.test
 *.prof
-AGQ-Daemon
-bin/
-dist/
-obj/
-/vendor/
-.pnp
-.pnp.js
-.coverage
+vendor/
+
+# Environment & secrets
 .env
-.service
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
