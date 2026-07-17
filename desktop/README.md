@@ -4,6 +4,20 @@ Wails + React desktop dashboard for [AGQ Daemon](../README.md). The React
 frontend never talks HTTP directly: it calls Go methods bound by Wails, and
 the Go side queries the daemon's local API on `localhost:${AGQ_PORT:-7432}`.
 
+## Features
+
+- **Overview** — provider aggregate strip (Gemini / Anthropic / OpenAI),
+  live/idle daemon status with poll cadence, account cards with per-model
+  quota bars, and a per-account detail sheet: pool status, 7-day sparklines,
+  inferred login history, recent snapshots.
+- **Analytics** — headline stats, remaining-quota-over-time chart (7d/30d,
+  avg/min), and a sortable per-account consumption breakdown.
+- **Settings** — daemon port with connection test, light/dark/system theme,
+  and email masking for screenshots (also togglable from the sidebar).
+
+Settings persist to `~/.agq/desktop.json`; theme preference persists locally
+in the webview.
+
 ## Stack
 
 - [Wails v2](https://wails.io) shell (Go backend, native webview window)

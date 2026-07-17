@@ -1,7 +1,8 @@
-import { BarChart3, LayoutDashboard, Moon, Settings, Sun } from 'lucide-react'
+import { BarChart3, Eye, EyeOff, LayoutDashboard, Moon, Settings, Sun } from 'lucide-react'
 
 import { useTheme } from '@/components/theme-provider'
 import { Button } from '@/components/ui/button'
+import { useAppConfig, useSetAppConfig } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import type { Page } from '@/types/navigation'
 
@@ -19,6 +20,9 @@ export function Sidebar({
   onNavigate: (page: Page) => void
 }) {
   const { resolvedTheme, setTheme } = useTheme()
+  const { data: cfg } = useAppConfig()
+  const setConfig = useSetAppConfig()
+  const masked = cfg?.mask_emails ?? false
 
   return (
     <aside className="flex h-full w-52 shrink-0 flex-col border-r bg-card">
@@ -44,6 +48,16 @@ export function Sidebar({
         ))}
       </nav>
       <div className="border-t p-2">
+        <Button
+          variant="ghost"
+          className="w-full justify-start gap-3 px-3 text-muted-foreground"
+          disabled={!cfg || setConfig.isPending}
+          onClick={() => cfg && setConfig.mutate({ ...cfg, mask_emails: !masked })}
+          title="Mask email addresses across the app"
+        >
+          {masked ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+          {masked ? 'Unmask emails' : 'Mask emails'}
+        </Button>
         <Button
           variant="ghost"
           className="w-full justify-start gap-3 px-3 text-muted-foreground"
