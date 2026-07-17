@@ -156,6 +156,145 @@ func TestCurrentAccountIdle(t *testing.T) {
 	}
 }
 
+func TestCurrentAccountActiveIsLive(t *testing.T) {
+	store := &fakeStore{
+		accounts: []domain.AccountSummary{{
+			ID:    7,
+			Email: "active@example.com",
+		}},
+	}
+	next := fixedTime(time.Minute)
+	status := fakeStatus{
+		state:      domain.StateActive,
+		emails:     []string{"active@example.com"},
+		nextPollAt: &next,
+	}
+	srv := New(store, status, WithClock(func() time.Time { return fixedTime(0) }))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/account/current", nil)
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	var body struct {
+		IsLive      bool             `json:"is_live"`
+		NextPollAt  *time.Time       `json:"next_poll_at"`
+		LastAccount *json.RawMessage `json:"last_account"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if !body.IsLive {
+		t.Fatal("is_live = false, want true when ACTIVE")
+	}
+	if body.NextPollAt == nil || !body.NextPollAt.Equal(next) {
+		t.Fatalf("next_poll_at = %v, want %v", body.NextPollAt, next)
+	}
+	if body.LastAccount != nil {
+		t.Fatal("last_account should be absent when ACTIVE")
+	}
+}
+
+func TestCurrentAccountIdleReturnsLastAccount(t *testing.T) {
+	store := &fakeStore{
+		accounts: []domain.AccountSummary{{
+			ID:        3,
+			Email:     "recent@example.com",
+			PlanName:  "Pro",
+			FirstSeen: fixedTime(-3 * time.Hour),
+			LastSeen:  fixedTime(-10 * time.Minute),
+		}, {
+			ID:       2,
+			Email:    "older@example.com",
+			LastSeen: fixedTime(-2 * time.Hour),
+		}},
+		latest: map[string]*domain.QuotaSnapshot{
+			"recent@example.com": {
+				Email:      "recent@example.com",
+				PlanName:   "Pro",
+				CapturedAt: fixedTime(-10 * time.Minute),
+				Models:     []domain.ModelQuota{},
+			},
+		},
+	}
+	srv := New(store, fakeStatus{}, WithClock(func() time.Time { return fixedTime(0) }))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/account/current", nil)
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	var body struct {
+		State       string `json:"state"`
+		IsLive      bool   `json:"is_live"`
+		LastAccount *struct {
+			Email          string `json:"email"`
+			LatestSnapshot *struct {
+				StalenessSeconds int64 `json:"staleness_seconds"`
+			} `json:"latest_snapshot"`
+		} `json:"last_account"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.State != string(domain.StateIdle) {
+		t.Fatalf("state = %q, want IDLE", body.State)
+	}
+	if body.IsLive {
+		t.Fatal("is_live = true, want false when IDLE")
+	}
+	if body.LastAccount == nil {
+		t.Fatal("last_account missing, want most recently seen account")
+	}
+	if body.LastAccount.Email != "recent@example.com" {
+		t.Fatalf("last_account.email = %q, want recent@example.com", body.LastAccount.Email)
+	}
+	if body.LastAccount.LatestSnapshot == nil || body.LastAccount.LatestSnapshot.StalenessSeconds != 600 {
+		t.Fatalf("last_account snapshot = %+v, want staleness 600", body.LastAccount.LatestSnapshot)
+	}
+}
+
+func TestCurrentAccountIdleWithEmptyStoreOmitsLastAccount(t *testing.T) {
+	srv := New(&fakeStore{}, fakeStatus{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/account/current", nil)
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	var body struct {
+		LastAccount *json.RawMessage `json:"last_account"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.LastAccount != nil {
+		t.Fatal("last_account should be absent when the store is empty")
+	}
+}
+
+func TestCurrentAccountIdlePropagatesStoreErrors(t *testing.T) {
+	store := &fakeStore{accountsErr: errors.New("db failed")}
+	srv := New(store, fakeStatus{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/account/current", nil)
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", rec.Code)
+	}
+}
+
 func TestSnapshotsRejectsInvalidQuery(t *testing.T) {
 	srv := New(&fakeStore{}, fakeStatus{})
 
@@ -294,6 +433,7 @@ type fakeStatus struct {
 	state      domain.DaemonState
 	emails     []string
 	lastPollAt *time.Time
+	nextPollAt *time.Time
 }
 
 func (f fakeStatus) Snapshot() domain.DaemonStatus {
@@ -307,6 +447,7 @@ func (f fakeStatus) Snapshot() domain.DaemonStatus {
 		Uptime:     "1s",
 		StartedAt:  fixedTime(-time.Second),
 		LastPollAt: f.lastPollAt,
+		NextPollAt: f.nextPollAt,
 	}
 }
 

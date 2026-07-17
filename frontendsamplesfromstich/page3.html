@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AGQ Analytics</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-container": "#464747",
+                        "surface-container": "#201f1f",
+                        "tertiary-fixed": "#e2e2e2",
+                        "surface-container-highest": "#353434",
+                        "tertiary": "#ffffff",
+                        "on-secondary-fixed-variant": "#464747",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "on-surface": "#e5e2e1",
+                        "error": "#ffb4ab",
+                        "surface-container-lowest": "#0e0e0e",
+                        "primary-fixed": "#e2e2e2",
+                        "surface-bright": "#3a3939",
+                        "surface": "#141313",
+                        "secondary-fixed": "#e4e2e2",
+                        "surface-container-high": "#2a2a2a",
+                        "on-surface-variant": "#c4c7c8",
+                        "on-secondary-container": "#b6b5b5",
+                        "surface-dim": "#141313",
+                        "on-tertiary": "#2f3131",
+                        "background": "#141313",
+                        "inverse-primary": "#5d5f5f",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "surface-container-low": "#1c1b1b",
+                        "secondary": "#c7c6c6",
+                        "secondary-fixed-dim": "#c7c6c6",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "inverse-on-surface": "#313030",
+                        "on-primary-container": "#636565",
+                        "outline-variant": "#444748",
+                        "on-background": "#e5e2e1",
+                        "primary-fixed-dim": "#c6c6c7",
+                        "on-error": "#690005",
+                        "on-tertiary-container": "#636565",
+                        "inverse-surface": "#e5e2e1",
+                        "tertiary-container": "#e2e2e2",
+                        "outline": "#8e9192",
+                        "on-primary-fixed-variant": "#454747",
+                        "on-primary": "#2f3131",
+                        "surface-tint": "#c6c6c7",
+                        "error-container": "#93000a",
+                        "primary": "#ffffff",
+                        "on-primary-fixed": "#1a1c1c",
+                        "on-error-container": "#ffdad6",
+                        "on-secondary": "#303031",
+                        "surface-variant": "#353434",
+                        "primary-container": "#e2e2e2",
+                        "on-secondary-fixed": "#1b1c1c"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "xl": "32px",
+                        "margin": "24px",
+                        "md": "16px",
+                        "xs": "4px",
+                        "sm": "8px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "mono-metric": ["JetBrains Mono"],
+                        "headline-md": ["JetBrains Mono"],
+                        "headline-lg": ["JetBrains Mono"],
+                        "label-caps": ["JetBrains Mono"],
+                        "body-sm": ["JetBrains Mono"],
+                        "body-md": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "mono-metric": ["28px", { "lineHeight": "32px", "letterSpacing": "-0.04em", "fontWeight": "700" }],
+                        "headline-md": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500" }],
+                        "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400" }]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { background-color: #0a0a0a; color: #ffffff; }
+        .sidebar-border { border-color: #222222; }
+        .card-bg { background-color: #111111; border-color: #222222; }
+        .text-muted { color: #666666; }
+        .border-muted { border-color: #222222; }
+        .table-row-alt:nth-child(even) { background-color: #0f0f0f; }
+        .table-row-alt:nth-child(odd) { background-color: #111111; }
+        .chart-bar-gemini { background-color: #ffffff; }
+        .chart-bar-anthropic { background-color: #888888; }
+        .chart-bar-openai { background-color: #444444; }
+    </style>
+</head>
+<body class="font-body-md antialiased overflow-x-hidden min-h-screen flex selection:bg-surface-container-high selection:text-primary">
+<!-- SideNavBar -->
+<nav class="fixed left-0 top-0 h-screen w-[240px] flex flex-col z-50 bg-surface dark:bg-surface border-r border-outline-variant dark:border-outline-variant">
+<div class="px-lg py-md border-b border-outline-variant dark:border-outline-variant flex items-center gap-sm">
+<span class="font-headline-lg text-headline-lg font-bold text-primary dark:text-primary tracking-tighter">AGQ</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant">System v1.0</span>
+</div>
+<div class="flex-1 py-sm flex flex-col gap-xs">
+<a class="flex items-center gap-md text-on-surface-variant dark:text-on-surface-variant px-4 py-3 hover:bg-surface-container-high dark:hover:bg-surface-container-high hover:text-primary transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">dashboard</span>
+<span class="font-body-md text-body-md">Overview</span>
+</a>
+<a class="flex items-center gap-md text-primary dark:text-primary border-l-2 border-primary font-bold px-4 py-3 scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">analytics</span>
+<span class="font-body-md text-body-md">Analytics</span>
+</a>
+<a class="flex items-center gap-md text-on-surface-variant dark:text-on-surface-variant px-4 py-3 hover:bg-surface-container-high dark:hover:bg-surface-container-high hover:text-primary transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+</div>
+<div class="mt-auto border-t border-outline-variant dark:border-outline-variant p-sm">
+<button class="w-full bg-primary text-surface font-body-md text-body-md py-2 rounded-DEFAULT mb-sm hover:opacity-90 transition-opacity">Mask Emails</button>
+<a class="flex items-center gap-md text-on-surface-variant dark:text-on-surface-variant px-4 py-3 hover:bg-surface-container-high dark:hover:bg-surface-container-high hover:text-primary transition-colors duration-150" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">vpn_key</span>
+<span class="font-body-md text-body-md">Security</span>
+</a>
+</div>
+</nav>
+<!-- Main Content -->
+<main class="ml-[240px] flex-1 min-h-screen p-lg max-w-[1280px] mx-auto w-full flex flex-col gap-xl">
+<!-- Header -->
+<header class="flex justify-between items-end border-b border-muted pb-sm">
+<div>
+<h1 class="font-headline-lg text-headline-lg text-primary uppercase">Analytics</h1>
+<p class="font-body-sm text-body-sm text-muted mt-xs">#666666 · last updated 12s ago</p>
+</div>
+<!-- TopAppBar actions integrated here for space efficiency -->
+<div class="flex gap-md text-on-surface-variant">
+<button class="hover:text-primary transition-colors"><span class="material-symbols-outlined">notifications</span></button>
+<button class="hover:text-primary transition-colors"><span class="material-symbols-outlined">account_circle</span></button>
+</div>
+</header>
+<!-- STAT CARDS ROW -->
+<section class="grid grid-cols-1 md:grid-cols-4 gap-sm">
+<div class="card-bg border rounded-DEFAULT p-md flex flex-col justify-center h-[100px]">
+<span class="font-label-caps text-label-caps text-muted uppercase">Total polls this week</span>
+<span class="font-mono-metric text-mono-metric text-primary mt-sm">1,240</span>
+</div>
+<div class="card-bg border rounded-DEFAULT p-md flex flex-col justify-center h-[100px]">
+<span class="font-label-caps text-label-caps text-muted uppercase">Most depleted model</span>
+<span class="font-body-md text-body-md text-primary mt-sm truncate">Claude 3.5 Sonnet</span>
+<span class="font-body-sm text-body-sm text-muted mt-xs">Anthropic</span>
+</div>
+<div class="card-bg border rounded-DEFAULT p-md flex flex-col justify-center h-[100px]">
+<span class="font-label-caps text-label-caps text-muted uppercase">Most remaining account</span>
+<span class="font-body-md text-body-md text-primary mt-sm truncate">a***@corp.io</span>
+</div>
+<div class="card-bg border rounded-DEFAULT p-md flex flex-col justify-center h-[100px]">
+<span class="font-label-caps text-label-caps text-muted uppercase">Next reset</span>
+<span class="font-mono-metric text-mono-metric text-primary mt-sm" style="font-size: 20px;">04h 22m</span>
+<span class="font-body-sm text-body-sm text-muted mt-xs">acc-3</span>
+</div>
+</section>
+<!-- USAGE OVER TIME CHART -->
+<section class="card-bg border rounded-DEFAULT p-md flex flex-col relative h-[280px]">
+<div class="flex justify-between items-start mb-md">
+<h2 class="font-label-caps text-label-caps text-muted uppercase">Usage Over Time</h2>
+<div class="flex border border-muted rounded-full overflow-hidden text-body-sm font-body-sm">
+<button class="px-3 py-1 bg-primary text-surface">7d</button>
+<button class="px-3 py-1 text-muted hover:text-primary transition-colors">30d</button>
+</div>
+</div>
+<div class="flex-1 flex items-end relative border-b border-muted pb-sm gap-md justify-between px-md">
+<!-- Y-axis labels -->
+<div class="absolute left-0 top-0 bottom-0 flex flex-col justify-between font-label-caps text-[10px] text-muted py-sm">
+<span>100%</span>
+<span>50%</span>
+<span>0%</span>
+</div>
+<!-- Chart Bars (Mockup) -->
+<!-- Day 1 -->
+<div class="flex items-end gap-[2px] h-full group relative ml-6">
+<div class="w-4 h-[60%] chart-bar-gemini rounded-t-sm"></div>
+<div class="w-4 h-[40%] chart-bar-anthropic rounded-t-sm"></div>
+<div class="w-4 h-[80%] chart-bar-openai rounded-t-sm"></div>
+<div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-[#1a1a1a] text-primary font-body-sm p-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10 border border-muted">Mon</div>
+</div>
+<!-- Day 2 -->
+<div class="flex items-end gap-[2px] h-full group relative">
+<div class="w-4 h-[70%] chart-bar-gemini rounded-t-sm"></div>
+<div class="w-4 h-[50%] chart-bar-anthropic rounded-t-sm"></div>
+<div class="w-4 h-[90%] chart-bar-openai rounded-t-sm"></div>
+<div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-[#1a1a1a] text-primary font-body-sm p-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10 border border-muted">Tue</div>
+</div>
+<!-- Day 3 -->
+<div class="flex items-end gap-[2px] h-full group relative">
+<div class="w-4 h-[40%] chart-bar-gemini rounded-t-sm"></div>
+<div class="w-4 h-[30%] chart-bar-anthropic rounded-t-sm"></div>
+<div class="w-4 h-[60%] chart-bar-openai rounded-t-sm"></div>
+<div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-[#1a1a1a] text-primary font-body-sm p-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10 border border-muted">Wed</div>
+</div>
+<!-- Day 4 -->
+<div class="flex items-end gap-[2px] h-full group relative">
+<div class="w-4 h-[85%] chart-bar-gemini rounded-t-sm"></div>
+<div class="w-4 h-[75%] chart-bar-anthropic rounded-t-sm"></div>
+<div class="w-4 h-[95%] chart-bar-openai rounded-t-sm"></div>
+<div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-[#1a1a1a] text-primary font-body-sm p-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10 border border-muted">Thu</div>
+</div>
+<!-- Day 5 -->
+<div class="flex items-end gap-[2px] h-full group relative">
+<div class="w-4 h-[55%] chart-bar-gemini rounded-t-sm"></div>
+<div class="w-4 h-[45%] chart-bar-anthropic rounded-t-sm"></div>
+<div class="w-4 h-[65%] chart-bar-openai rounded-t-sm"></div>
+<div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-[#1a1a1a] text-primary font-body-sm p-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10 border border-muted">Fri</div>
+</div>
+<!-- Day 6 -->
+<div class="flex items-end gap-[2px] h-full group relative">
+<div class="w-4 h-[30%] chart-bar-gemini rounded-t-sm"></div>
+<div class="w-4 h-[20%] chart-bar-anthropic rounded-t-sm"></div>
+<div class="w-4 h-[40%] chart-bar-openai rounded-t-sm"></div>
+<div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-[#1a1a1a] text-primary font-body-sm p-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10 border border-muted">Sat</div>
+</div>
+<!-- Day 7 -->
+<div class="flex items-end gap-[2px] h-full group relative">
+<div class="w-4 h-[90%] chart-bar-gemini rounded-t-sm"></div>
+<div class="w-4 h-[80%] chart-bar-anthropic rounded-t-sm"></div>
+<div class="w-4 h-[100%] chart-bar-openai rounded-t-sm"></div>
+<div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-[#1a1a1a] text-primary font-body-sm p-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10 border border-muted">Sun</div>
+</div>
+</div>
+<!-- Legend & X-axis labels -->
+<div class="flex justify-between items-center mt-sm px-md ml-6 text-muted font-label-caps text-label-caps">
+<div class="flex gap-sm">
+<span class="flex items-center gap-xs"><span class="w-2 h-2 rounded-full chart-bar-gemini"></span>Gemini</span>
+<span class="flex items-center gap-xs"><span class="w-2 h-2 rounded-full chart-bar-anthropic"></span>Anthropic</span>
+<span class="flex items-center gap-xs"><span class="w-2 h-2 rounded-full chart-bar-openai"></span>OpenAI</span>
+</div>
+<div class="flex justify-between flex-1 ml-lg px-2">
+<span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+</div>
+</div>
+</section>
+<!-- PER-ACCOUNT BREAKDOWN TABLE -->
+<section class="card-bg border rounded-DEFAULT overflow-hidden flex flex-col">
+<h2 class="font-label-caps text-label-caps text-muted uppercase p-md border-b border-muted">Per-Account Breakdown</h2>
+<div class="overflow-x-auto">
+<table class="w-full text-left font-body-sm border-collapse">
+<thead class="text-[#444444] font-label-caps text-label-caps uppercase bg-[#0a0a0a] border-b border-muted">
+<tr>
+<th class="px-md py-sm font-normal cursor-pointer hover:text-primary transition-colors">Account <span class="text-muted">↓</span></th>
+<th class="px-md py-sm font-normal cursor-pointer hover:text-primary transition-colors">Provider <span class="text-muted">↑↓</span></th>
+<th class="px-md py-sm font-normal cursor-pointer hover:text-primary transition-colors">Model <span class="text-muted">↑↓</span></th>
+<th class="px-md py-sm font-normal cursor-pointer hover:text-primary transition-colors">Start % <span class="text-muted">↑↓</span></th>
+<th class="px-md py-sm font-normal cursor-pointer hover:text-primary transition-colors">Current % <span class="text-muted">↑↓</span></th>
+<th class="px-md py-sm font-normal cursor-pointer hover:text-primary transition-colors">Consumed <span class="text-muted">↑↓</span></th>
+<th class="px-md py-sm font-normal cursor-pointer hover:text-primary transition-colors text-right">Resets <span class="text-muted">↑↓</span></th>
+</tr>
+</thead>
+<tbody class="text-primary divide-y divide-[#222222]">
+<tr class="table-row-alt hover:bg-[#1a1a1a] transition-colors">
+<td class="px-md py-sm font-mono text-muted">acc-1@corp.io</td>
+<td class="px-md py-sm">Anthropic</td>
+<td class="px-md py-sm">Claude 3.5 Sonnet</td>
+<td class="px-md py-sm">100%</td>
+<td class="px-md py-sm text-[#ffb4ab]">12%</td>
+<td class="px-md py-sm text-muted">▓▓▓▓░ 88%</td>
+<td class="px-md py-sm text-right">02h 15m</td>
+</tr>
+<tr class="table-row-alt hover:bg-[#1a1a1a] transition-colors">
+<td class="px-md py-sm font-mono text-muted">acc-2@corp.io</td>
+<td class="px-md py-sm">OpenAI</td>
+<td class="px-md py-sm">GPT-4o</td>
+<td class="px-md py-sm">100%</td>
+<td class="px-md py-sm">56%</td>
+<td class="px-md py-sm text-muted">▓▓░░░ 44%</td>
+<td class="px-md py-sm text-right">11h 40m</td>
+</tr>
+<tr class="table-row-alt hover:bg-[#1a1a1a] transition-colors">
+<td class="px-md py-sm font-mono text-muted">acc-3@corp.io</td>
+<td class="px-md py-sm">Google</td>
+<td class="px-md py-sm">Gemini 1.5 Pro</td>
+<td class="px-md py-sm">50%</td>
+<td class="px-md py-sm">48%</td>
+<td class="px-md py-sm text-muted">░░░░░ 2%</td>
+<td class="px-md py-sm text-right">04h 22m</td>
+</tr>
+<tr class="table-row-alt hover:bg-[#1a1a1a] transition-colors">
+<td class="px-md py-sm font-mono text-muted">acc-4@corp.io</td>
+<td class="px-md py-sm">Anthropic</td>
+<td class="px-md py-sm">Claude 3 Opus</td>
+<td class="px-md py-sm">100%</td>
+<td class="px-md py-sm">80%</td>
+<td class="px-md py-sm text-muted">▓░░░░ 20%</td>
+<td class="px-md py-sm text-right">22h 10m</td>
+</tr>
+<tr class="table-row-alt hover:bg-[#1a1a1a] transition-colors">
+<td class="px-md py-sm font-mono text-muted">acc-5@corp.io</td>
+<td class="px-md py-sm">OpenAI</td>
+<td class="px-md py-sm">GPT-4 Turbo</td>
+<td class="px-md py-sm">80%</td>
+<td class="px-md py-sm">30%</td>
+<td class="px-md py-sm text-muted">▓▓▓░░ 50%</td>
+<td class="px-md py-sm text-right">01h 05m</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</main>
+</body></html>

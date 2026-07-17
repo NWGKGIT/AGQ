@@ -124,9 +124,17 @@ Returns the account(s) currently logged in to Antigravity, reflecting live
 daemon state joined with the newest persisted snapshot for each. When idle,
 `state` is `IDLE` and `accounts` is empty.
 
+`is_live` is `true` only while the daemon is actively polling a language
+server. When idle, `last_account` carries the most recently seen account from
+the database (with its latest snapshot when available) so frontends can show
+"last known account" instead of a blank state; `is_live: false` signals that
+this data is historical, not a confirmed live session. `next_poll_at` mirrors
+the field from `/api/status`.
+
 ```json
 {
   "state": "ACTIVE",
+  "is_live": true,
   "email": "user@example.com",
   "account": {
     "id": 1,
@@ -138,6 +146,22 @@ daemon state joined with the newest persisted snapshot for each. When idle,
   },
   "accounts": [{ "email": "user@example.com" }],
   "last_poll_at": "2026-07-01T12:01:00Z",
+  "next_poll_at": "2026-07-01T12:02:00Z",
+  "as_of": "2026-07-01T12:01:15Z"
+}
+```
+
+When idle:
+
+```json
+{
+  "state": "IDLE",
+  "is_live": false,
+  "accounts": [],
+  "last_account": {
+    "email": "user@example.com",
+    "latest_snapshot": { "staleness_seconds": 600 }
+  },
   "as_of": "2026-07-01T12:01:15Z"
 }
 ```
