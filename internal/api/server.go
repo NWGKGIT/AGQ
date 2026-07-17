@@ -152,13 +152,21 @@ type accountResponse struct {
 // currentAccountResponse describes the account(s) the daemon is currently
 // polling, i.e. the account(s) presently logged in to Antigravity. It reflects
 // live daemon state joined with the newest persisted snapshot for each account.
+//
+// When state is IDLE, active account fields are empty. last_account carries the
+// most recently seen account from the database so frontends can show "last known
+// account" rather than a blank state. is_live is false in that case, signalling
+// that the data is historical, not a confirmed live session.
 type currentAccountResponse struct {
-	State      domain.DaemonState `json:"state"`
-	Email      string             `json:"email,omitempty"`
-	Account    *accountResponse   `json:"account,omitempty"`
-	Accounts   []accountResponse  `json:"accounts"`
-	LastPollAt *time.Time         `json:"last_poll_at,omitempty"`
-	AsOf       time.Time          `json:"as_of"`
+	State       domain.DaemonState `json:"state"`
+	IsLive      bool               `json:"is_live"`
+	Email       string             `json:"email,omitempty"`
+	Account     *accountResponse   `json:"account,omitempty"`
+	Accounts    []accountResponse  `json:"accounts"`
+	LastPollAt  *time.Time         `json:"last_poll_at,omitempty"`
+	NextPollAt  *time.Time         `json:"next_poll_at,omitempty"`
+	LastAccount *accountResponse   `json:"last_account,omitempty"`
+	AsOf        time.Time          `json:"as_of"`
 }
 
 func (s *Server) currentAccountHandler(w http.ResponseWriter, r *http.Request) {
@@ -166,8 +174,10 @@ func (s *Server) currentAccountHandler(w http.ResponseWriter, r *http.Request) {
 
 	resp := currentAccountResponse{
 		State:      status.State,
+		IsLive:     status.State == domain.StateActive,
 		Accounts:   []accountResponse{},
 		LastPollAt: status.LastPollAt,
+		NextPollAt: status.NextPollAt,
 		AsOf:       s.now().UTC(),
 	}
 
@@ -208,6 +218,37 @@ func (s *Server) currentAccountHandler(w http.ResponseWriter, r *http.Request) {
 	if len(resp.Accounts) > 0 {
 		resp.Email = resp.Accounts[0].Email
 		resp.Account = &resp.Accounts[0]
+	}
+
+	// When idle, surface the most recently seen account from the DB so the
+	// frontend can show "last known account" instead of a blank state. The
+	// is_live=false flag makes clear this is historical, not a live session.
+	if status.State == domain.StateIdle {
+		all, err := s.store.GetAllAccounts()
+		if err != nil {
+			s.writeError(w, http.StatusInternalServerError, "failed to query accounts", err)
+			return
+		}
+		if len(all) > 0 {
+			last := all[0]
+			ar := accountResponse{
+				ID:        last.ID,
+				Email:     last.Email,
+				PlanName:  last.PlanName,
+				FirstSeen: last.FirstSeen,
+				LastSeen:  last.LastSeen,
+			}
+			snap, err := s.store.GetLatestSnapshot(last.Email)
+			if err != nil {
+				s.writeError(w, http.StatusInternalServerError, "failed to query last snapshot", err)
+				return
+			}
+			if snap != nil {
+				sr := s.toSnapshotResponse(snap)
+				ar.LatestSnapshot = &sr
+			}
+			resp.LastAccount = &ar
+		}
 	}
 
 	s.writeJSON(w, http.StatusOK, resp)
