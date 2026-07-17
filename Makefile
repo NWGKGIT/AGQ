@@ -5,7 +5,7 @@ UNIT     := agq.service
 CMD      := ./cmd/agq-daemon
 BUILDFLAGS ?= -buildvcs=false
 
-.PHONY: build test install enable disable uninstall clean run
+.PHONY: build test install enable disable uninstall clean run desktop-build desktop-dev desktop-test
 
 ## build — compile the daemon binary
 build:
@@ -45,6 +45,19 @@ uninstall: disable
 ## clean — remove local build artifact
 clean:
 	rm -f $(BINARY)
+
+## desktop-build — build the desktop app (requires wails CLI)
+desktop-build:
+	cd desktop && wails build -tags webkit2_41
+
+## desktop-dev — run the desktop app with hot reload
+desktop-dev:
+	cd desktop && wails dev -tags webkit2_41
+
+## desktop-test — run desktop Go tests and frontend typecheck/build
+desktop-test:
+	cd desktop && go test ./...
+	cd desktop/frontend && npm run build
 
 ## logs — tail the daemon log
 logs:

@@ -30,6 +30,18 @@ temporary directory:
 GOCACHE=/tmp/agq-go-cache go test ./...
 ```
 
+## Desktop App
+
+A Wails + React desktop dashboard lives in `desktop/`. It talks to the
+daemon's local API through its Go backend, so nothing extra is served over
+HTTP. Requires the [Wails v2 CLI](https://wails.io) and, on Linux, GTK3 +
+webkit2gtk-4.1.
+
+```sh
+make desktop-build   # binary at desktop/build/bin/agq-desktop
+make desktop-dev     # hot-reload development
+```
+
 ## Install As A User Service
 
 ```sh
