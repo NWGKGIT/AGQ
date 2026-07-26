@@ -1,4 +1,4 @@
-import { BarChart3, Eye, EyeOff, LayoutDashboard, Moon, Settings, Sun } from 'lucide-react'
+import { BarChart3, CircleGauge, Eye, EyeOff, LayoutDashboard, Moon, Settings, Sun } from 'lucide-react'
 
 import { useTheme } from '@/components/theme-provider'
 import { Button } from '@/components/ui/button'
@@ -25,10 +25,15 @@ export function Sidebar({
   const masked = cfg?.mask_emails ?? false
 
   return (
-    <aside className="flex h-full w-52 shrink-0 flex-col border-r bg-card">
-      <div className="flex h-14 items-center gap-2 border-b px-4">
-        <span className="font-mono text-lg font-bold tracking-tighter">AGQ</span>
-        <span className="text-xs text-muted-foreground">quota monitor</span>
+    <aside className="flex h-full w-60 shrink-0 flex-col border-r bg-card">
+      <div className="flex h-16 items-center gap-2.5 border-b px-4">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <CircleGauge className="size-4" aria-hidden="true" />
+        </div>
+        <div className="min-w-0 leading-tight">
+          <span className="block truncate text-sm font-semibold">Antigravity</span>
+          <span className="block truncate text-xs text-muted-foreground">Token Monitor</span>
+        </div>
       </div>
       <nav className="flex flex-1 flex-col gap-1 p-2">
         {navItems.map(({ page: itemPage, label, icon: Icon }) => (

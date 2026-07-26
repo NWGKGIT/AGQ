@@ -65,14 +65,13 @@ function ConnectionSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Daemon connection</CardTitle>
+        <CardTitle className="text-base">Local data source</CardTitle>
         <CardDescription>
-          Where the AGQ daemon serves its local API. Matches the daemon's{' '}
-          <span className="font-mono text-xs">AGQ_PORT</span> (default 7432).
+          Advanced compatibility setting for the monitor's loopback API (default 7432).
         </CardDescription>
       </CardHeader>
       <CardContent className="divide-y">
-        <Row label="API port" description="localhost only; the app reconnects after saving.">
+        <Row label="API port" description="Localhost only; the app reconnects after saving.">
           <div className="flex items-center gap-2">
             <Input
               value={port}
@@ -165,22 +164,23 @@ function PrivacySection() {
   )
 }
 
-function DaemonSection() {
+function MonitorSection() {
   const { data: status, error } = useDaemonStatus()
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Daemon</CardTitle>
-        <CardDescription>Runs as a systemd user service, independent of this app.</CardDescription>
+        <CardTitle className="text-base">Monitor runtime</CardTitle>
+        <CardDescription>Local quota collection and account detection status.</CardDescription>
       </CardHeader>
       <CardContent>
         {error ? (
           <div className="space-y-2 py-2 text-sm">
-            <p className="text-destructive">Not reachable.</p>
-            <code className="block w-fit select-text rounded-md bg-muted px-3 py-1.5 font-mono text-xs">
-              systemctl --user start agq
-            </code>
+            <p className="text-destructive">The monitor runtime is not reachable.</p>
+            <p className="text-xs text-muted-foreground">
+              Restart Antigravity Token Monitor. It will reconnect automatically when the local
+              runtime becomes available.
+            </p>
           </div>
         ) : status ? (
           <dl className="grid grid-cols-2 gap-x-6 gap-y-2 py-2 text-sm">
@@ -219,13 +219,13 @@ export function SettingsPage() {
       <header className="border-b pb-4">
         <h1 className="text-lg font-semibold">Settings</h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          Connection, appearance, and privacy.
+          Monitor connection, appearance, and privacy.
         </p>
       </header>
       <ConnectionSection />
       <AppearanceSection />
       <PrivacySection />
-      <DaemonSection />
+      <MonitorSection />
     </div>
   )
 }

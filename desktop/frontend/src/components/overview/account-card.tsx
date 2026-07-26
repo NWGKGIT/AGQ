@@ -1,6 +1,8 @@
 import { QuotaBar } from '@/components/quota-bar'
+import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { ago, maskEmail, pct, until } from '@/lib/format'
+import { deriveHealth, HEALTH_LABELS } from '@/lib/health'
 import { groupByProvider } from '@/lib/providers'
 import { cn } from '@/lib/utils'
 import type { apiclient } from '../../../wailsjs/go/models'
@@ -17,7 +19,8 @@ function soonestReset(models: apiclient.ModelQuota[]): string | undefined {
 
 /**
  * One account with its per-provider model quotas. Clicking opens the detail
- * sheet. Fully exhausted accounts are dimmed like the design samples.
+ * sheet. Quota health and whether the account is currently live are presented
+ * separately so color is never the only status signal.
  */
 export function AccountCard({
   account,
@@ -32,8 +35,7 @@ export function AccountCard({
 }) {
   const snapshot = account.latest_snapshot
   const models = snapshot?.models ?? []
-  const exhausted =
-    models.length > 0 && models.every((m) => m.is_exhausted || m.remaining_fraction === 0)
+  const health = deriveHealth(models)
   const groups = groupByProvider(models, (m) => m.label)
   const nextReset = soonestReset(models)
 
@@ -43,24 +45,49 @@ export function AccountCard({
       tabIndex={0}
       onClick={() => onSelect(account.email)}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') onSelect(account.email)
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onSelect(account.email)
+        }
       }}
       className={cn(
-        'flex cursor-pointer flex-col gap-3 p-4 transition-colors hover:border-ring/60',
-        exhausted && 'opacity-50',
+        'flex cursor-pointer flex-col gap-3 border-l-4 p-4 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        health.status === 'low' && 'border-l-destructive bg-destructive/[0.04]',
+        health.status === 'warning' && 'border-l-warning bg-warning/[0.04]',
+        health.status === 'good' && 'border-l-success bg-success/[0.035]',
+        health.status === 'unknown' && 'border-l-muted-foreground/40',
       )}
+      aria-label={`${masked ? maskEmail(account.email) : account.email}, ${HEALTH_LABELS[health.status]} quota health, ${live ? 'live' : 'idle'}`}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="truncate font-mono text-sm">
           {masked ? maskEmail(account.email) : account.email}
         </span>
-        <span
-          className={cn(
-            'size-2 shrink-0 rounded-full',
-            live ? 'bg-success' : exhausted ? 'bg-destructive/60' : 'bg-muted-foreground/40',
-          )}
-          title={live ? 'live' : exhausted ? 'exhausted' : 'idle'}
-        />
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Badge
+            variant={
+              health.status === 'low'
+                ? 'destructive'
+                : health.status === 'warning'
+                  ? 'warning'
+                  : health.status === 'good'
+                    ? 'success'
+                    : 'secondary'
+            }
+          >
+            {HEALTH_LABELS[health.status]}
+          </Badge>
+          <Badge variant="outline" className="font-normal text-muted-foreground">
+            <span
+              className={cn(
+                'size-1.5 rounded-full',
+                live ? 'bg-sky-500' : 'bg-muted-foreground/50',
+              )}
+              aria-hidden="true"
+            />
+            {live ? 'Live' : 'Idle'}
+          </Badge>
+        </div>
       </div>
 
       <div className="flex justify-between text-[11px] uppercase tracking-wide text-muted-foreground">

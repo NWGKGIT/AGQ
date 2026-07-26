@@ -3,7 +3,7 @@ import { useCurrentAccount, useStats } from '@/lib/api'
 import { ago, maskEmail, until } from '@/lib/format'
 
 /**
- * Daemon liveness line: state badge, active (or last known) account, poll
+ * Monitor liveness line: state badge, active (or last known) account, poll
  * cadence, and the soonest upcoming reset across all accounts.
  */
 export function StatusHeader({ masked }: { masked: boolean }) {

@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 
 import { Sidebar } from '@/components/layout/sidebar'
-import { AnalyticsPage } from '@/pages/analytics'
-import { OverviewPage } from '@/pages/overview'
-import { SettingsPage } from '@/pages/settings'
 import type { Page } from '@/types/navigation'
 
-const pages: Record<Page, () => React.JSX.Element> = {
+const OverviewPage = lazy(() => import('@/pages/overview').then((module) => ({ default: module.OverviewPage })))
+const AnalyticsPage = lazy(() => import('@/pages/analytics').then((module) => ({ default: module.AnalyticsPage })))
+const SettingsPage = lazy(() => import('@/pages/settings').then((module) => ({ default: module.SettingsPage })))
+
+const pages: Record<Page, React.LazyExoticComponent<() => React.JSX.Element>> = {
   overview: OverviewPage,
   analytics: AnalyticsPage,
   settings: SettingsPage,
@@ -20,7 +21,15 @@ export default function App() {
     <div className="flex h-full">
       <Sidebar page={page} onNavigate={setPage} />
       <main className="flex-1 overflow-y-auto">
-        <ActivePage />
+		<Suspense
+			fallback={
+				<div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+					Loading…
+				</div>
+			}
+		>
+			<ActivePage />
+		</Suspense>
       </main>
     </div>
   )
