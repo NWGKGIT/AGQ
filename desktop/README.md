@@ -1,8 +1,9 @@
-# AGQ Desktop
+# Antigravity Token Monitor Desktop
 
-Wails + React desktop dashboard for [AGQ Daemon](../README.md). The React
-frontend never talks HTTP directly: it calls Go methods bound by Wails, and
-the Go side queries the daemon's local API on `localhost:${AGQ_PORT:-7432}`.
+Wails + React desktop dashboard for [Antigravity Token Monitor](../README.md).
+The desktop process starts the monitoring runtime itself and the React frontend
+uses typed Wails bindings. Existing Linux users can continue to run the legacy
+headless daemon on `localhost:${AGQ_PORT:-7432}` during migration.
 
 ## Features
 
@@ -15,8 +16,8 @@ the Go side queries the daemon's local API on `localhost:${AGQ_PORT:-7432}`.
 - **Settings** — daemon port with connection test, light/dark/system theme,
   and email masking for screenshots (also togglable from the sidebar).
 
-Settings persist to `~/.agq/desktop.json`; theme preference persists locally
-in the webview.
+Settings and quota history currently remain in the compatible `~/.agq` data
+directory; theme preference persists locally in the webview.
 
 ## Stack
 
@@ -29,7 +30,7 @@ in the webview.
 
 ```sh
 wails dev -tags webkit2_41     # hot reload
-wails build -tags webkit2_41   # production binary at build/bin/agq-desktop
+wails build -tags webkit2_41   # production binary at build/bin/AntigravityTokenMonitor
 ```
 
 Or from the repository root: `make desktop-dev` / `make desktop-build`.

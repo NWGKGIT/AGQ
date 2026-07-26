@@ -1,9 +1,16 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "agq-desktop",
-  "outputfilename": "agq-desktop",
+  "name": "antigravity-token-monitor",
+  "outputfilename": "AntigravityTokenMonitor",
   "frontend:install": "npm install",
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
-  "frontend:dev:serverUrl": "auto"
+  "frontend:dev:serverUrl": "auto",
+  "info": {
+    "companyName": "Antigravity Token Monitor Contributors",
+    "productName": "Antigravity Token Monitor",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright © 2026 Antigravity Token Monitor contributors",
+    "comments": "Local token quota monitoring desktop application"
+  }
 }

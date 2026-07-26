@@ -1,7 +1,9 @@
-# AGQ Daemon
+# Antigravity Token Monitor
 
-AGQ Daemon tracks Antigravity AI quota usage for every authenticated local
-language server process and exposes the latest data over a local JSON API.
+Antigravity Token Monitor is a local-first desktop dashboard that tracks quota
+usage for authenticated Antigravity language-server processes. The desktop app
+embeds discovery, polling, persistence, and analytics; an optional headless
+daemon exposes the same data through a local JSON API for advanced Linux use.
 
 The daemon is intentionally local-first:
 
@@ -38,11 +40,12 @@ HTTP. Requires the [Wails v2 CLI](https://wails.io) and, on Linux, GTK3 +
 webkit2gtk-4.1.
 
 ```sh
-make desktop-build   # binary at desktop/build/bin/agq-desktop
+make desktop-build   # binary at desktop/build/bin/AntigravityTokenMonitor
 make desktop-dev     # hot-reload development
+make desktop-appimage # x86_64 AppImage release artifact
 ```
 
-## Install As A User Service
+## Optional Headless Linux Service
 
 ```sh
 make install
