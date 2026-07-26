@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"net"
 	"net/http"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"agq-daemon/internal/domain"
@@ -101,9 +101,23 @@ func (s *Server) Handler() http.Handler {
 
 // Run starts the HTTP API on addr and blocks until ctx is cancelled.
 func (s *Server) Run(ctx context.Context, addr string) error {
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	return s.Serve(ctx, listener)
+}
+
+// Serve runs the API on an already-open listener. Embedded hosts can reserve
+// their port synchronously and surface startup failures before showing UI.
+func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
 	httpSrv := &http.Server{
-		Addr:    addr,
-		Handler: s.Handler(),
+		Addr:              listener.Addr().String(),
+		Handler:           s.Handler(),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	done := make(chan struct{})
@@ -119,8 +133,8 @@ func (s *Server) Run(ctx context.Context, addr string) error {
 		}
 	}()
 
-	s.logger.Info("api: listening", "addr", addr)
-	err := httpSrv.ListenAndServe()
+	s.logger.Info("api: listening", "addr", listener.Addr().String())
+	err := httpSrv.Serve(listener)
 	close(done)
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
@@ -406,13 +420,11 @@ func (s *Server) writeJSON(w http.ResponseWriter, status int, v any) {
 }
 
 func (s *Server) writeError(w http.ResponseWriter, status int, msg string, err error) {
-	detail := ""
 	if err != nil {
-		detail = strings.ReplaceAll(err.Error(), "/home/", "~/")
+		s.logger.Warn("api request failed", "status", status, "error", msg, "err", err)
 	}
 	s.writeJSON(w, status, map[string]string{
-		"error":  msg,
-		"detail": detail,
+		"error": msg,
 	})
 }
 

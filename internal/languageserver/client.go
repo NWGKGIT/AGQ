@@ -23,6 +23,7 @@ const (
 
 	getUserStatusPath = "/exa.language_server_pb.LanguageServerService/GetUserStatus"
 	requestBody       = `{"metadata":{"ideName":"antigravity","extensionName":"antigravity","ideVersion":"1.0.0","locale":"en"}}`
+	maxResponseBody   = 8 << 20
 )
 
 // Client wraps HTTP access to the local language server.
@@ -53,7 +54,7 @@ func (c *Client) FetchSnapshot(ctx context.Context, info *domain.ProcessInfo) (*
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readLimitedBody(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("read body: %w", err)
 	}
@@ -102,7 +103,9 @@ func ParseSnapshot(body []byte, capturedAt time.Time) (*domain.QuotaSnapshot, er
 		PromptCreditsMonthly:   int64(us.PlanStatus.PlanInfo.MonthlyPromptCredits),
 		FlowCreditsAvailable:   int64(us.PlanStatus.AvailableFlowCredits),
 		FlowCreditsMonthly:     int64(us.PlanStatus.PlanInfo.MonthlyFlowCredits),
-		RawJSON:                string(body),
+		// Persist normalized fields only. The full upstream payload can contain
+		// account metadata the monitor does not need to retain.
+		RawJSON: "{}",
 	}
 
 	for _, cfg := range us.CascadeModelConfigData.ClientModelConfigs {
@@ -117,8 +120,6 @@ func ParseSnapshot(body []byte, capturedAt time.Time) (*domain.QuotaSnapshot, er
 			m.RemainingFraction = &frac
 			m.RemainingPct = &pct
 			m.IsExhausted = frac == 0
-		} else {
-			m.IsExhausted = true
 		}
 
 		if cfg.QuotaInfo.ResetTime != "" {
@@ -153,7 +154,7 @@ func (c *Client) probePort(port int, scheme, csrfToken string) bool {
 		return false
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readLimitedBody(resp.Body)
 	if err != nil {
 		return false
 	}
@@ -185,10 +186,24 @@ func setGetUserStatusHeaders(req *http.Request, csrfToken string) {
 func newHTTPClient(timeout time.Duration) *http.Client {
 	return &http.Client{
 		Timeout: timeout,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
 		},
 	}
+}
+
+func readLimitedBody(body io.Reader) ([]byte, error) {
+	data, err := io.ReadAll(io.LimitReader(body, maxResponseBody+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > maxResponseBody {
+		return nil, fmt.Errorf("response body exceeds %d bytes", maxResponseBody)
+	}
+	return data, nil
 }
 
 func truncate(s string, n int) string {

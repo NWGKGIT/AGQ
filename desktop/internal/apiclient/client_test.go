@@ -2,6 +2,7 @@ package apiclient
 
 import (
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -12,7 +13,16 @@ import (
 // testClient points a Client at a httptest server.
 func testClient(t *testing.T, handler http.Handler) *Client {
 	t.Helper()
-	srv := httptest.NewServer(handler)
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		if strings.Contains(err.Error(), "operation not permitted") {
+			t.Skipf("sandbox does not permit loopback listeners: %v", err)
+		}
+		t.Fatalf("listen on loopback: %v", err)
+	}
+	srv := httptest.NewUnstartedServer(handler)
+	srv.Listener = listener
+	srv.Start()
 	t.Cleanup(srv.Close)
 	port, err := strconv.Atoi(strings.TrimPrefix(srv.URL, "http://127.0.0.1:"))
 	if err != nil {
@@ -119,10 +129,16 @@ func TestErrorEnvelopeIsSurfaced(t *testing.T) {
 }
 
 func TestConnectionFailureIsUnreachable(t *testing.T) {
-	// Point at a server that is already closed.
-	srv := httptest.NewServer(http.NotFoundHandler())
-	port, _ := strconv.Atoi(strings.TrimPrefix(srv.URL, "http://127.0.0.1:"))
-	srv.Close()
+	// Point at a loopback port whose listener has already closed.
+	listener, listenErr := net.Listen("tcp4", "127.0.0.1:0")
+	if listenErr != nil {
+		if strings.Contains(listenErr.Error(), "operation not permitted") {
+			t.Skipf("sandbox does not permit loopback listeners: %v", listenErr)
+		}
+		t.Fatalf("listen on loopback: %v", listenErr)
+	}
+	port := listener.Addr().(*net.TCPAddr).Port
+	listener.Close()
 
 	_, err := New(port).Health()
 	if !errors.Is(err, ErrDaemonUnreachable) {

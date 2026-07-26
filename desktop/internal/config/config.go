@@ -42,8 +42,11 @@ func Path() (string, error) {
 		return "", fmt.Errorf("resolve home dir: %w", err)
 	}
 	dir := filepath.Join(home, ".agq")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", fmt.Errorf("create %s: %w", dir, err)
+	}
+	if err := os.Chmod(dir, 0o700); err != nil {
+		return "", fmt.Errorf("secure %s: %w", dir, err)
 	}
 	return filepath.Join(dir, "desktop.json"), nil
 }
@@ -84,7 +87,7 @@ func Save(cfg Config) error {
 		return fmt.Errorf("encode config: %w", err)
 	}
 	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	if err := os.WriteFile(tmp, data, 0o600); err != nil {
 		return fmt.Errorf("write config: %w", err)
 	}
 	if err := os.Rename(tmp, path); err != nil {

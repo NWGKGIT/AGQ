@@ -2,8 +2,13 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
+	"path/filepath"
 	"sync"
+	"time"
 
+	"agq-daemon/monitor"
 	"agq-desktop/internal/apiclient"
 	"agq-desktop/internal/config"
 )
@@ -13,9 +18,10 @@ import (
 type App struct {
 	ctx context.Context
 
-	mu     sync.RWMutex
-	cfg    config.Config
-	client *apiclient.Client
+	mu      sync.RWMutex
+	cfg     config.Config
+	client  *apiclient.Client
+	runtime *monitor.Runtime
 }
 
 // NewApp creates a new App application struct.
@@ -31,6 +37,52 @@ func NewApp() *App {
 // functions.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	if err := a.startMonitor(ctx); err != nil {
+		slog.Error("embedded monitor failed to start", "err", err)
+	}
+}
+
+// shutdown stops the embedded monitor before Wails tears down the process.
+func (a *App) shutdown(_ context.Context) {
+	stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := a.stopMonitor(stopCtx); err != nil {
+		slog.Warn("embedded monitor shutdown failed", "err", err)
+	}
+}
+
+func (a *App) startMonitor(ctx context.Context) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	configPath, err := config.Path()
+	if err != nil {
+		return err
+	}
+	runtime, err := monitor.New(monitor.Config{
+		DataDir: filepath.Dir(configPath),
+		Addr:    fmt.Sprintf("127.0.0.1:%d", a.cfg.Port),
+		Logger:  slog.Default(),
+	})
+	if err != nil {
+		return err
+	}
+	if err := runtime.Start(ctx); err != nil {
+		return err
+	}
+	a.runtime = runtime
+	return nil
+}
+
+func (a *App) stopMonitor(ctx context.Context) error {
+	a.mu.Lock()
+	runtime := a.runtime
+	a.runtime = nil
+	a.mu.Unlock()
+	if runtime == nil {
+		return nil
+	}
+	return runtime.Stop(ctx)
 }
 
 func (a *App) api() *apiclient.Client {
@@ -48,6 +100,7 @@ func (a *App) GetConfig() config.Config {
 
 // SetConfig persists new desktop settings and reconnects the API client.
 func (a *App) SetConfig(cfg config.Config) (config.Config, error) {
+	previous := a.GetConfig()
 	if err := config.Save(cfg); err != nil {
 		return a.GetConfig(), err
 	}
@@ -55,6 +108,18 @@ func (a *App) SetConfig(cfg config.Config) (config.Config, error) {
 	a.cfg = cfg
 	a.client = apiclient.New(cfg.Port)
 	a.mu.Unlock()
+
+	if previous.Port != cfg.Port && a.ctx != nil {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		err := a.stopMonitor(stopCtx)
+		cancel()
+		if err != nil {
+			return cfg, err
+		}
+		if err := a.startMonitor(a.ctx); err != nil {
+			return cfg, err
+		}
+	}
 	return cfg, nil
 }
 

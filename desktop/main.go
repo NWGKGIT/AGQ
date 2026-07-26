@@ -17,7 +17,7 @@ func main() {
 	app := NewApp()
 
 	err := wails.Run(&options.App{
-		Title:     "AGQ",
+		Title:     "Antigravity Token Monitor",
 		Width:     1280,
 		Height:    800,
 		MinWidth:  960,
@@ -27,13 +27,14 @@ func main() {
 		},
 		BackgroundColour: &options.RGBA{R: 20, G: 20, B: 20, A: 1},
 		OnStartup:        app.startup,
+		OnShutdown:       app.shutdown,
 		Bind: []any{
 			app,
 		},
 		Linux: &linux.Options{
 			WindowIsTranslucent: false,
 			WebviewGpuPolicy:    linux.WebviewGpuPolicyOnDemand,
-			ProgramName:         "agq-desktop",
+			ProgramName:         "antigravity-token-monitor",
 		},
 	})
 	if err != nil {

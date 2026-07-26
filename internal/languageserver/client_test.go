@@ -80,8 +80,8 @@ func TestParseSnapshot(t *testing.T) {
 	}
 
 	second := snapshot.Models[1]
-	if !second.IsExhausted {
-		t.Fatal("missing remainingFraction should be exhausted")
+	if second.IsExhausted {
+		t.Fatal("missing remainingFraction should be unknown, not exhausted")
 	}
 	if second.RemainingFraction != nil || second.RemainingPct != nil {
 		t.Fatalf("missing quota produced percentage data: %#v", second)
@@ -89,6 +89,39 @@ func TestParseSnapshot(t *testing.T) {
 
 	if !json.Valid([]byte(snapshot.RawJSON)) {
 		t.Fatal("RawJSON is not valid JSON")
+	}
+	if snapshot.RawJSON != "{}" {
+		t.Fatalf("RawJSON = %q, want redacted object", snapshot.RawJSON)
+	}
+}
+
+func TestParseSnapshotMissingFractionIsUnknownNotExhausted(t *testing.T) {
+	body := []byte(`{
+		"userStatus": {
+			"email": "unknown@example.com",
+			"cascadeModelConfigData": {
+				"clientModelConfigs": [{
+					"label": "Unknown model",
+					"modelOrAlias": {"model": "unknown-model"},
+					"quotaInfo": {}
+				}]
+			}
+		}
+	}`)
+
+	snapshot, err := ParseSnapshot(body, time.Date(2026, 7, 26, 12, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("ParseSnapshot() error = %v", err)
+	}
+	if len(snapshot.Models) != 1 {
+		t.Fatalf("models = %d, want 1", len(snapshot.Models))
+	}
+	model := snapshot.Models[0]
+	if model.RemainingFraction != nil {
+		t.Fatalf("RemainingFraction = %v, want nil", *model.RemainingFraction)
+	}
+	if model.IsExhausted {
+		t.Fatal("missing remaining fraction must not be classified as exhausted")
 	}
 }
 
@@ -109,5 +142,12 @@ func TestFlexInt64RejectsInvalidString(t *testing.T) {
 	err := json.Unmarshal([]byte(`{"amount":"not-a-number"}`), &value)
 	if err == nil {
 		t.Fatal("json.Unmarshal returned nil error, want parse failure")
+	}
+}
+
+func TestReadLimitedBodyRejectsOversizedResponse(t *testing.T) {
+	_, err := readLimitedBody(strings.NewReader(strings.Repeat("x", maxResponseBody+1)))
+	if err == nil || !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("err = %v, want response size error", err)
 	}
 }

@@ -1,3 +1,3 @@
-// Package detector discovers authenticated Antigravity language server
-// processes by inspecting /proc.
+// Package detector discovers authenticated local Antigravity language server
+// processes on Linux and Windows.
 package detector
