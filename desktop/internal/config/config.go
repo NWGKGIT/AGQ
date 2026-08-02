@@ -17,14 +17,18 @@ const DefaultPort = 7432
 
 // Config holds the user-tunable desktop settings.
 type Config struct {
-	// Port is the daemon API port to connect to.
+	// ExposeAPI serves the monitor's JSON API on 127.0.0.1:Port for external
+	// tools (curl, scripts). The app itself talks to the monitor in-process.
+	ExposeAPI bool `json:"expose_api"`
+	// Port is the loopback port used when ExposeAPI is enabled.
 	Port int `json:"port"`
 	// MaskEmails hides local parts of account emails in the UI.
 	MaskEmails bool `json:"mask_emails"`
 }
 
 // Default returns the configuration used before the user saves anything.
-// AGQ_PORT is honored so a daemon on a custom port works out of the box.
+// AGQ_PORT is honored so scripts written against a custom daemon port keep
+// working when the API is exposed.
 func Default() Config {
 	port := DefaultPort
 	if raw := os.Getenv("AGQ_PORT"); raw != "" {

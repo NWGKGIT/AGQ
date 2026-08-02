@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"path/filepath"
 	"sync"
 
@@ -23,8 +24,11 @@ import (
 // Config describes one embedded monitoring runtime.
 type Config struct {
 	DataDir string
-	Addr    string
-	Logger  *slog.Logger
+	// Addr is the optional TCP address for the loopback HTTP API. When empty
+	// the runtime does not listen; embedded hosts reach the API in-process
+	// through Handler instead.
+	Addr   string
+	Logger *slog.Logger
 }
 
 // Runtime owns all long-lived monitor resources.
@@ -33,13 +37,14 @@ type Runtime struct {
 
 	mu       sync.Mutex
 	db       *store.DB
+	handler  http.Handler
 	listener net.Listener
 	cancel   context.CancelFunc
 	done     chan error
 }
 
 // Addr returns the bound API address after Start, or an empty string before
-// startup and after shutdown.
+// startup, after shutdown, or when no TCP address was configured.
 func (r *Runtime) Addr() string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -49,13 +54,19 @@ func (r *Runtime) Addr() string {
 	return r.listener.Addr().String()
 }
 
+// Handler returns the API handler after Start, or nil before startup and
+// after shutdown. Embedded hosts dispatch requests to it directly instead of
+// going through a TCP socket.
+func (r *Runtime) Handler() http.Handler {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.handler
+}
+
 // New validates the runtime configuration. Resources are opened by Start.
 func New(cfg Config) (*Runtime, error) {
 	if cfg.DataDir == "" {
 		return nil, errors.New("monitor data directory is required")
-	}
-	if cfg.Addr == "" {
-		return nil, errors.New("monitor listen address is required")
 	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
@@ -75,10 +86,13 @@ func (r *Runtime) Start(parent context.Context) error {
 	if err != nil {
 		return fmt.Errorf("open monitor database: %w", err)
 	}
-	listener, err := net.Listen("tcp", r.cfg.Addr)
-	if err != nil {
-		db.Close()
-		return fmt.Errorf("listen on %s: %w", r.cfg.Addr, err)
+	var listener net.Listener
+	if r.cfg.Addr != "" {
+		listener, err = net.Listen("tcp", r.cfg.Addr)
+		if err != nil {
+			db.Close()
+			return fmt.Errorf("listen on %s: %w", r.cfg.Addr, err)
+		}
 	}
 
 	ctx, cancel := context.WithCancel(parent)
@@ -90,18 +104,23 @@ func (r *Runtime) Start(parent context.Context) error {
 	done := make(chan error, 1)
 
 	r.db = db
+	r.handler = server.Handler()
 	r.listener = listener
 	r.cancel = cancel
 	r.done = done
 
 	go scanner.Run(ctx, infoCh)
 	go quotaPoller.Run(ctx, infoCh)
-	go func() {
-		done <- server.Serve(ctx, listener)
+	if listener != nil {
+		go func() {
+			done <- server.Serve(ctx, listener)
+			close(done)
+		}()
+		r.cfg.Logger.Info("monitor runtime started", "addr", listener.Addr().String())
+	} else {
 		close(done)
-	}()
-
-	r.cfg.Logger.Info("monitor runtime started", "addr", listener.Addr().String())
+		r.cfg.Logger.Info("monitor runtime started", "addr", "in-process")
+	}
 	return nil
 }
 
@@ -117,6 +136,7 @@ func (r *Runtime) Stop(ctx context.Context) error {
 	db := r.db
 	r.cancel = nil
 	r.done = nil
+	r.handler = nil
 	r.listener = nil
 	r.db = nil
 	r.mu.Unlock()

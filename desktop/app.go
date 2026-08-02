@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"path/filepath"
 	"sync"
 	"time"
@@ -26,11 +27,23 @@ type App struct {
 
 // NewApp creates a new App application struct.
 func NewApp() *App {
-	cfg := config.Load()
-	return &App{
-		cfg:    cfg,
-		client: apiclient.New(cfg.Port),
+	app := &App{cfg: config.Load()}
+	// The client resolves the handler per request, so it stays valid across
+	// monitor restarts and reports "unreachable" while the monitor is down.
+	app.client = apiclient.New(app.monitorHandler)
+	return app
+}
+
+// monitorHandler returns the embedded monitor's API handler, or nil while the
+// monitor is not running.
+func (a *App) monitorHandler() http.Handler {
+	a.mu.RLock()
+	runtime := a.runtime
+	a.mu.RUnlock()
+	if runtime == nil {
+		return nil
 	}
+	return runtime.Handler()
 }
 
 // startup saves the runtime context so bound methods can call Wails runtime
@@ -59,9 +72,15 @@ func (a *App) startMonitor(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	// The app reaches the monitor in-process; a TCP listener is only bound
+	// when the user opts into exposing the API to external tools.
+	addr := ""
+	if a.cfg.ExposeAPI {
+		addr = fmt.Sprintf("127.0.0.1:%d", a.cfg.Port)
+	}
 	runtime, err := monitor.New(monitor.Config{
 		DataDir: filepath.Dir(configPath),
-		Addr:    fmt.Sprintf("127.0.0.1:%d", a.cfg.Port),
+		Addr:    addr,
 		Logger:  slog.Default(),
 	})
 	if err != nil {
@@ -98,7 +117,8 @@ func (a *App) GetConfig() config.Config {
 	return a.cfg
 }
 
-// SetConfig persists new desktop settings and reconnects the API client.
+// SetConfig persists new desktop settings and restarts the embedded monitor
+// when the API exposure settings changed.
 func (a *App) SetConfig(cfg config.Config) (config.Config, error) {
 	previous := a.GetConfig()
 	if err := config.Save(cfg); err != nil {
@@ -106,10 +126,11 @@ func (a *App) SetConfig(cfg config.Config) (config.Config, error) {
 	}
 	a.mu.Lock()
 	a.cfg = cfg
-	a.client = apiclient.New(cfg.Port)
 	a.mu.Unlock()
 
-	if previous.Port != cfg.Port && a.ctx != nil {
+	listenerChanged := previous.ExposeAPI != cfg.ExposeAPI ||
+		(cfg.ExposeAPI && previous.Port != cfg.Port)
+	if listenerChanged && a.ctx != nil {
 		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		err := a.stopMonitor(stopCtx)
 		cancel()

@@ -650,6 +650,7 @@ export namespace apiclient {
 export namespace config {
 	
 	export class Config {
+	    expose_api: boolean;
 	    port: number;
 	    mask_emails: boolean;
 	
@@ -659,6 +660,7 @@ export namespace config {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.expose_api = source["expose_api"];
 	        this.port = source["port"];
 	        this.mask_emails = source["mask_emails"];
 	    }

@@ -2,8 +2,8 @@ import { PlugZap } from 'lucide-react'
 
 import { Card, CardContent } from '@/components/ui/card'
 
-/** Full-page state shown when the local monitoring runtime cannot be reached. */
-export function DaemonUnreachable({ port }: { port?: number }) {
+/** Full-page state shown when the embedded monitoring runtime is not running. */
+export function DaemonUnreachable() {
   return (
     <div className="flex h-full items-center justify-center p-6">
       <Card className="max-w-md">
@@ -11,12 +11,11 @@ export function DaemonUnreachable({ port }: { port?: number }) {
           <PlugZap className="size-8 text-muted-foreground" />
           <div className="font-medium">Monitor unavailable</div>
           <p className="text-sm text-muted-foreground">
-            Antigravity Token Monitor cannot reach its local data source on{' '}
-            <span className="font-mono">localhost:{port ?? 7432}</span>.
+            The built-in monitor runtime is not running, so no quota data is available.
           </p>
           <p className="text-xs text-muted-foreground">
-            Check the monitor runtime in Settings. The dashboard reconnects automatically when
-            the local data source is available.
+            Restart Antigravity Token Monitor. The dashboard reconnects automatically when the
+            runtime becomes available.
           </p>
         </CardContent>
       </Card>

@@ -31,7 +31,7 @@ func TestSaveThenLoadRoundTrips(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("AGQ_PORT", "")
 
-	want := Config{Port: 8123, MaskEmails: true}
+	want := Config{ExposeAPI: true, Port: 8123, MaskEmails: true}
 	if err := Save(want); err != nil {
 		t.Fatalf("Save returned error: %v", err)
 	}

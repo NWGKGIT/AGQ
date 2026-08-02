@@ -36,7 +36,7 @@ export function OverviewPage() {
   const selected = accounts.find((a) => a.email === selectedEmail) ?? null
 
   if (error && isDaemonUnreachable(error)) {
-    return <DaemonUnreachable port={cfg?.port} />
+    return <DaemonUnreachable />
   }
 
   return (
