@@ -111,3 +111,24 @@
     cursor: default;
   }
 }
+
+@layer utilities {
+  /*
+   * Shared interactive-surface recipe: a quiet border/background lift on
+   * hover instead of shadow jumps. Every hoverable card and row uses this so
+   * motion feels uniform across the app.
+   */
+  .interactive-surface {
+    transition-property: border-color, background-color, box-shadow;
+    transition-duration: 150ms;
+    transition-timing-function: ease-out;
+  }
+  .interactive-surface:hover {
+    border-color: color-mix(in oklch, var(--foreground) 18%, var(--border));
+    background-color: color-mix(in oklch, var(--muted) 40%, var(--card));
+  }
+  /* Numeric alignment for tables and stat readouts. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+}

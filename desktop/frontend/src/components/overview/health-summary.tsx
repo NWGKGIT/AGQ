@@ -25,10 +25,15 @@ export function HealthSummary({ accounts }: { accounts: readonly apiclient.Accou
   return (
     <Card className="grid grid-cols-2 sm:grid-cols-4 sm:divide-x">
       {SUMMARY_ITEMS.map(({ status, icon: Icon, className }) => (
-        <div key={status} className="flex items-center gap-3 px-4 py-3">
+        <div
+          key={status}
+          className="interactive-surface flex items-center gap-3 border-transparent px-4 py-3 first:rounded-l-lg last:rounded-r-lg"
+        >
           <Icon className={cn('size-4 shrink-0', className)} aria-hidden="true" />
           <div>
-            <div className="font-mono text-xl font-semibold leading-none">{counts[status]}</div>
+            <div className="tnum font-mono text-xl font-semibold leading-none">
+              {counts[status]}
+            </div>
             <div className="mt-1 text-xs text-muted-foreground">{HEALTH_LABELS[status]}</div>
           </div>
         </div>

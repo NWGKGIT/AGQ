@@ -4,7 +4,7 @@ import { QuotaBar } from '@/components/quota-bar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useModelsLatest } from '@/lib/api'
 import { pct } from '@/lib/format'
-import { PROVIDERS, classifyProvider, type Provider } from '@/lib/providers'
+import { PROVIDERS, PROVIDER_COLORS, classifyProvider, type Provider } from '@/lib/providers'
 import type { apiclient } from '../../../wailsjs/go/models'
 
 type ProviderAggregate = {
@@ -55,11 +55,19 @@ export function ProviderStrip() {
             </div>
           ))
         : aggregates.map(({ provider, fraction, models, accounts }) => (
-            <div key={provider} className="flex flex-col gap-1.5 p-5">
-              <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+            <div
+              key={provider}
+              className="interactive-surface flex flex-col gap-1.5 border-transparent p-5 first:rounded-l-lg last:rounded-r-lg"
+            >
+              <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                <span
+                  className="size-1.5 rounded-full"
+                  style={{ backgroundColor: PROVIDER_COLORS[provider] }}
+                  aria-hidden="true"
+                />
                 {provider}
               </span>
-              <span className="font-mono text-3xl font-bold tracking-tight">
+              <span className="tnum font-mono text-3xl font-bold tracking-tight">
                 {pct(fraction)}
               </span>
               <QuotaBar fraction={fraction} className="h-[3px]" />

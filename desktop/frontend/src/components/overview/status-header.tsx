@@ -31,19 +31,21 @@ export function StatusHeader({ masked }: { masked: boolean }) {
       )}
       <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
         {current?.last_poll_at && (
-          <span>
+          <span className="tnum">
             polled{' '}
             {ago((Date.now() - new Date(current.last_poll_at).getTime()) / 1000)} ago
           </span>
         )}
-        {active && current?.next_poll_at && <span>next in {until(current.next_poll_at)}</span>}
+        {active && current?.next_poll_at && (
+          <span className="tnum">next in {until(current.next_poll_at)}</span>
+        )}
         {stats?.next_reset && (
-          <Badge variant="outline" className="font-normal text-muted-foreground">
+          <Badge variant="outline" className="gap-1.5 font-normal text-muted-foreground">
             next reset
-            <span className="font-mono text-foreground">
+            <span className="tnum font-medium text-foreground">
               {until(stats.next_reset.reset_time)}
             </span>
-            <span className="font-mono">{display(stats.next_reset.email)}</span>
+            <span className="max-w-40 truncate">{display(stats.next_reset.email)}</span>
           </Badge>
         )}
       </div>
