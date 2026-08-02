@@ -45,7 +45,7 @@ export function ProviderStrip() {
   const aggregates = useMemo(() => aggregate(data?.models ?? []), [data])
 
   return (
-    <section className="grid grid-cols-3 divide-x rounded-lg border bg-card">
+    <section className="grid grid-cols-1 divide-y rounded-lg border bg-card sm:grid-cols-3 sm:divide-x sm:divide-y-0">
       {isPending
         ? PROVIDERS.map((p) => (
             <div key={p} className="space-y-2 p-5">

@@ -23,7 +23,7 @@ export function HealthSummary({ accounts }: { accounts: readonly apiclient.Accou
   }
 
   return (
-    <Card className="grid grid-cols-4 divide-x">
+    <Card className="grid grid-cols-2 sm:grid-cols-4 sm:divide-x">
       {SUMMARY_ITEMS.map(({ status, icon: Icon, className }) => (
         <div key={status} className="flex items-center gap-3 px-4 py-3">
           <Icon className={cn('size-4 shrink-0', className)} aria-hidden="true" />

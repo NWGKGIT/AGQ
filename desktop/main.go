@@ -17,11 +17,14 @@ func main() {
 	app := NewApp()
 
 	err := wails.Run(&options.App{
-		Title:     "Antigravity Token Monitor",
-		Width:     1280,
-		Height:    800,
-		MinWidth:  960,
-		MinHeight: 640,
+		Title:  "Antigravity Token Monitor",
+		Width:  1280,
+		Height: 800,
+		// Keep the minimum small: tiling compositors (Hyprland, sway) size the
+		// surface themselves, and a large minimum makes them scale the buffer
+		// instead of reflowing the layout, breaking rendering and input.
+		MinWidth:  360,
+		MinHeight: 480,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
