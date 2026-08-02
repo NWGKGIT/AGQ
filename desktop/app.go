@@ -189,6 +189,11 @@ func (a *App) GetModelsLatest() (apiclient.ModelsLatestResponse, error) {
 	return a.api().ModelsLatest()
 }
 
+// GetAccountModels returns each model's newest known quota for one account.
+func (a *App) GetAccountModels(email string) (apiclient.AccountModelsResponse, error) {
+	return a.api().AccountModels(email)
+}
+
 // GetTimeseries returns per-day provider aggregates.
 func (a *App) GetTimeseries(rangeKey, agg string) (apiclient.TimeseriesResponse, error) {
 	return a.api().Timeseries(rangeKey, agg)

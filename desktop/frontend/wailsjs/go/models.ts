@@ -9,6 +9,7 @@ export namespace apiclient {
 	    reset_time?: string;
 	    pool_reset_time?: string;
 	    time_until_reset_ms?: number;
+	    assumed_refilled?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new ModelQuota(source);
@@ -24,6 +25,7 @@ export namespace apiclient {
 	        this.reset_time = source["reset_time"];
 	        this.pool_reset_time = source["pool_reset_time"];
 	        this.time_until_reset_ms = source["time_until_reset_ms"];
+	        this.assumed_refilled = source["assumed_refilled"];
 	    }
 	}
 	export class Snapshot {
@@ -112,6 +114,70 @@ export namespace apiclient {
 		    return a;
 		}
 	}
+	export class ModelAggregate {
+	    label: string;
+	    model_id: string;
+	    remaining_fraction?: number;
+	    remaining_pct?: number;
+	    is_exhausted: boolean;
+	    reset_time?: string;
+	    pool_reset_time?: string;
+	    email: string;
+	    captured_at: string;
+	    staleness_seconds: number;
+	    assumed_refilled?: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ModelAggregate(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.label = source["label"];
+	        this.model_id = source["model_id"];
+	        this.remaining_fraction = source["remaining_fraction"];
+	        this.remaining_pct = source["remaining_pct"];
+	        this.is_exhausted = source["is_exhausted"];
+	        this.reset_time = source["reset_time"];
+	        this.pool_reset_time = source["pool_reset_time"];
+	        this.email = source["email"];
+	        this.captured_at = source["captured_at"];
+	        this.staleness_seconds = source["staleness_seconds"];
+	        this.assumed_refilled = source["assumed_refilled"];
+	    }
+	}
+	export class AccountModelsResponse {
+	    email: string;
+	    models: ModelAggregate[];
+	
+	    static createFrom(source: any = {}) {
+	        return new AccountModelsResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.email = source["email"];
+	        this.models = this.convertValues(source["models"], ModelAggregate);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class AccountRemaining {
 	    email: string;
 	    remaining_fraction: number;
@@ -164,6 +230,7 @@ export namespace apiclient {
 	    starting_fraction?: number;
 	    consumed?: number;
 	    reset_time?: string;
+	    assumed_refilled?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new BreakdownRow(source);
@@ -178,6 +245,7 @@ export namespace apiclient {
 	        this.starting_fraction = source["starting_fraction"];
 	        this.consumed = source["consumed"];
 	        this.reset_time = source["reset_time"];
+	        this.assumed_refilled = source["assumed_refilled"];
 	    }
 	}
 	export class BreakdownResponse {
@@ -309,36 +377,7 @@ export namespace apiclient {
 	        this.uptime = source["uptime"];
 	    }
 	}
-	export class ModelAggregate {
-	    label: string;
-	    model_id: string;
-	    remaining_fraction?: number;
-	    remaining_pct?: number;
-	    is_exhausted: boolean;
-	    reset_time?: string;
-	    pool_reset_time?: string;
-	    email: string;
-	    captured_at: string;
-	    staleness_seconds: number;
 	
-	    static createFrom(source: any = {}) {
-	        return new ModelAggregate(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.label = source["label"];
-	        this.model_id = source["model_id"];
-	        this.remaining_fraction = source["remaining_fraction"];
-	        this.remaining_pct = source["remaining_pct"];
-	        this.is_exhausted = source["is_exhausted"];
-	        this.reset_time = source["reset_time"];
-	        this.pool_reset_time = source["pool_reset_time"];
-	        this.email = source["email"];
-	        this.captured_at = source["captured_at"];
-	        this.staleness_seconds = source["staleness_seconds"];
-	    }
-	}
 	
 	export class ModelsLatestResponse {
 	    models: ModelAggregate[];

@@ -144,6 +144,13 @@ func (c *Client) ModelsLatest() (ModelsLatestResponse, error) {
 	return out, err
 }
 
+// AccountModels calls GET /api/accounts/{email}/models/current.
+func (c *Client) AccountModels(email string) (AccountModelsResponse, error) {
+	var out AccountModelsResponse
+	err := c.get("/api/accounts/"+url.PathEscape(email)+"/models/current", &out)
+	return out, err
+}
+
 // Timeseries calls GET /api/analytics/timeseries.
 func (c *Client) Timeseries(rangeKey, agg string) (TimeseriesResponse, error) {
 	q := url.Values{}

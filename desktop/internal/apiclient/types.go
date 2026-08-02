@@ -20,7 +20,8 @@ type DaemonStatus struct {
 	NextPollAt *string  `json:"next_poll_at,omitempty"`
 }
 
-// ModelQuota is one model entry inside a snapshot.
+// ModelQuota is one model entry inside a snapshot. AssumedRefilled marks
+// values the daemon inferred after a reset passed without a fresh poll.
 type ModelQuota struct {
 	Label             string   `json:"label"`
 	ModelID           string   `json:"model_id"`
@@ -30,6 +31,7 @@ type ModelQuota struct {
 	ResetTime         *string  `json:"reset_time,omitempty"`
 	PoolResetTime     *string  `json:"pool_reset_time,omitempty"`
 	TimeUntilResetMs  *int64   `json:"time_until_reset_ms,omitempty"`
+	AssumedRefilled   bool     `json:"assumed_refilled,omitempty"`
 }
 
 // Snapshot is one persisted quota snapshot.
@@ -79,7 +81,8 @@ type SnapshotsResponse struct {
 	Snapshots []Snapshot `json:"snapshots"`
 }
 
-// ModelAggregate is one row of GET /api/models/latest.
+// ModelAggregate is one row of GET /api/models/latest and
+// GET /api/accounts/{email}/models/current.
 type ModelAggregate struct {
 	Label             string   `json:"label"`
 	ModelID           string   `json:"model_id"`
@@ -91,10 +94,17 @@ type ModelAggregate struct {
 	Email             string   `json:"email"`
 	CapturedAt        string   `json:"captured_at"`
 	StalenessSeconds  int64    `json:"staleness_seconds"`
+	AssumedRefilled   bool     `json:"assumed_refilled,omitempty"`
 }
 
 // ModelsLatestResponse is returned by GET /api/models/latest.
 type ModelsLatestResponse struct {
+	Models []ModelAggregate `json:"models"`
+}
+
+// AccountModelsResponse is returned by GET /api/accounts/{email}/models/current.
+type AccountModelsResponse struct {
+	Email  string           `json:"email"`
 	Models []ModelAggregate `json:"models"`
 }
 
@@ -121,6 +131,7 @@ type BreakdownRow struct {
 	StartingFraction *float64 `json:"starting_fraction,omitempty"`
 	Consumed         *float64 `json:"consumed,omitempty"`
 	ResetTime        *string  `json:"reset_time,omitempty"`
+	AssumedRefilled  bool     `json:"assumed_refilled,omitempty"`
 }
 
 // BreakdownResponse is returned by GET /api/analytics/breakdown.
