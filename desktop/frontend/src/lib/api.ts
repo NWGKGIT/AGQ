@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import {
+  GetAccountModels,
   GetAccounts,
   GetBreakdown,
   GetConfig,
@@ -8,7 +9,6 @@ import {
   GetHealth,
   GetModelsLatest,
   GetSnapshots,
-  GetSparklines,
   GetStats,
   GetStatus,
   GetTimeline,
@@ -83,10 +83,10 @@ export function useSnapshots(email: string, limit = 10) {
   })
 }
 
-export function useSparklines(email: string) {
+export function useAccountModels(email: string) {
   return useQuery({
-    queryKey: ['sparklines', email],
-    queryFn: () => GetSparklines(email),
+    queryKey: ['accountModels', email],
+    queryFn: () => GetAccountModels(email),
     enabled: email !== '',
     refetchInterval: REFETCH_MS,
     retry: false,
