@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import {
-  Bar,
-  BarChart,
+  Area,
+  AreaChart,
   CartesianGrid,
   Legend,
   ResponsiveContainer,
@@ -35,10 +35,10 @@ function Toggle<T extends string>({
           key={option}
           onClick={() => onChange(option)}
           className={cn(
-            'px-2.5 py-1 transition-colors',
+            'px-2.5 py-1 transition-colors duration-150',
             option === value
               ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:text-foreground',
+              : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
           )}
         >
           {option}
@@ -48,7 +48,11 @@ function Toggle<T extends string>({
   )
 }
 
-/** Per-day remaining-quota aggregates, one bar group per provider. */
+/**
+ * Per-day remaining-quota trend, one gradient-filled line per provider.
+ * Lines read trends better than the previous grouped bars: quota is a
+ * continuous level, not a per-day quantity.
+ */
 export function UsageChart({
   range,
   agg,
@@ -97,7 +101,22 @@ export function UsageChart({
         </div>
       ) : (
         <ResponsiveContainer width="100%" height="100%" className="flex-1">
-          <BarChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: -24 }}>
+          <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: -24 }}>
+            <defs>
+              {PROVIDERS.map((provider) => (
+                <linearGradient
+                  key={provider}
+                  id={`fill-${provider}`}
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop offset="0%" stopColor={PROVIDER_COLORS[provider]} stopOpacity={0.18} />
+                  <stop offset="100%" stopColor={PROVIDER_COLORS[provider]} stopOpacity={0.02} />
+                </linearGradient>
+              ))}
+            </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis
               dataKey="date"
@@ -114,7 +133,7 @@ export function UsageChart({
             />
             <Tooltip
               formatter={(value) => [`${Math.round(Number(value))}%`]}
-              cursor={{ fill: 'var(--muted)', opacity: 0.5 }}
+              cursor={{ stroke: 'var(--muted-foreground)', strokeDasharray: '3 3' }}
               contentStyle={{
                 backgroundColor: 'var(--popover)',
                 border: '1px solid var(--border)',
@@ -125,15 +144,19 @@ export function UsageChart({
             />
             <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" iconSize={8} />
             {PROVIDERS.map((provider) => (
-              <Bar
+              <Area
                 key={provider}
+                type="monotone"
                 dataKey={provider}
-                fill={PROVIDER_COLORS[provider]}
-                radius={[2, 2, 0, 0]}
-                maxBarSize={18}
+                stroke={PROVIDER_COLORS[provider]}
+                strokeWidth={2}
+                fill={`url(#fill-${provider})`}
+                dot={false}
+                activeDot={{ r: 3.5, strokeWidth: 0 }}
+                connectNulls
               />
             ))}
-          </BarChart>
+          </AreaChart>
         </ResponsiveContainer>
       )}
     </Card>
