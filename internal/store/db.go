@@ -390,6 +390,63 @@ func (d *DB) GetLatestModelQuotas() ([]domain.ModelQuotaAggregate, error) {
 	return results, rows.Err()
 }
 
+// GetCurrentModelQuotas returns, for one account, each model's newest quota
+// row that carries a non-null remaining fraction, captured at or after since.
+// The account's latest snapshot can report null fractions for some or all
+// models (the language server omits values at times); falling back to the
+// newest non-null row per model lets the dashboard always show the last known
+// percentage instead of a blank.
+func (d *DB) GetCurrentModelQuotas(email string, since time.Time) ([]domain.ModelQuotaAggregate, error) {
+	rows, err := d.sql.Query(`
+		SELECT mq.label, mq.model_id,
+		       mq.remaining_fraction, mq.remaining_pct,
+		       mq.is_exhausted, mq.reset_time, mq.pool_reset_time,
+		       a.email, s.captured_at
+		FROM model_quotas mq
+		JOIN snapshots s ON s.id = mq.snapshot_id
+		JOIN accounts a  ON a.id = s.account_id
+		INNER JOIN (
+			SELECT mq2.model_id, mq2.label, MAX(s2.captured_at) AS max_cap
+			FROM model_quotas mq2
+			JOIN snapshots s2 ON s2.id = mq2.snapshot_id
+			JOIN accounts a2  ON a2.id = s2.account_id
+			WHERE a2.email = ?
+			  AND mq2.remaining_fraction IS NOT NULL
+			  AND s2.captured_at >= ?
+			GROUP BY mq2.model_id, mq2.label
+		) newest ON newest.model_id = mq.model_id
+		        AND newest.label    = mq.label
+		        AND newest.max_cap  = s.captured_at
+		WHERE a.email = ? AND mq.remaining_fraction IS NOT NULL
+		ORDER BY mq.label
+	`, email, since.UTC().Format(time.RFC3339), email)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	now := time.Now()
+	var results []domain.ModelQuotaAggregate
+	for rows.Next() {
+		var m domain.ModelQuotaAggregate
+		var capturedAtStr string
+		if err := rows.Scan(&m.Label, &m.ModelID,
+			&m.RemainingFraction, &m.RemainingPct,
+			&m.IsExhausted, &m.ResetTime, &m.PoolResetTime,
+			&m.Email, &capturedAtStr); err != nil {
+			return nil, err
+		}
+		m.CapturedAt = capturedAtStr
+		if t, err := parseDBTime(capturedAtStr, "captured_at"); err == nil {
+			m.StalenessSeconds = now.Unix() - t.Unix()
+		} else {
+			return nil, err
+		}
+		results = append(results, m)
+	}
+	return results, rows.Err()
+}
+
 // GetFractionSamplesSince returns every non-null model remaining fraction
 // captured at or after since, across all accounts, ordered oldest-first. It
 // backs the analytics time-series endpoint, which aggregates by day and
@@ -631,6 +688,21 @@ func (d *DB) GetAnalyticsStats(now time.Time) (domain.AnalyticsStats, error) {
 			return domain.AnalyticsStats{}, err
 		}
 
+		// A row whose reset time has passed refilled server-side; its stored
+		// fraction no longer describes the present. Treat it as full so stale
+		// depleted rows don't win "most depleted" or drag account averages.
+		var reset time.Time
+		if resetStr != nil {
+			var err error
+			if reset, err = parseDBTime(*resetStr, "reset_time"); err != nil {
+				return domain.AnalyticsStats{}, err
+			}
+			if reset.Before(now) {
+				full := 1.0
+				fraction = &full
+			}
+		}
+
 		if fraction != nil {
 			if stats.MostDepletedModel == nil || *fraction < stats.MostDepletedModel.RemainingFraction {
 				stats.MostDepletedModel = &domain.DepletedModel{
@@ -649,10 +721,6 @@ func (d *DB) GetAnalyticsStats(now time.Time) (domain.AnalyticsStats, error) {
 		}
 
 		if resetStr != nil {
-			reset, err := parseDBTime(*resetStr, "reset_time")
-			if err != nil {
-				return domain.AnalyticsStats{}, err
-			}
 			if !reset.Before(now) && (nextReset.IsZero() || reset.Before(nextReset)) {
 				nextReset = reset
 				stats.NextReset = &domain.NextReset{

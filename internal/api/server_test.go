@@ -344,25 +344,27 @@ func TestAccountsPropagatesLatestSnapshotErrors(t *testing.T) {
 }
 
 type fakeStore struct {
-	accounts        []domain.AccountSummary
-	latest          map[string]*domain.QuotaSnapshot
-	history         []domain.QuotaSnapshot
-	models          []domain.ModelQuotaAggregate
-	fractionSamples []domain.FractionSample
-	accountSamples  map[string][]domain.FractionSample
-	breakdown       []domain.BreakdownRow
-	stats           domain.AnalyticsStats
-	snapshotRefs    map[string][]domain.SnapshotRef
-	snapshotModels  map[int64][]domain.ModelQuota
-	accountsErr     error
-	latestErr       error
-	historyErr      error
-	modelsErr       error
-	samplesErr      error
-	breakdownErr    error
-	statsErr        error
-	refsErr         error
-	snapModelsErr   error
+	accounts         []domain.AccountSummary
+	latest           map[string]*domain.QuotaSnapshot
+	history          []domain.QuotaSnapshot
+	models           []domain.ModelQuotaAggregate
+	fractionSamples  []domain.FractionSample
+	accountSamples   map[string][]domain.FractionSample
+	breakdown        []domain.BreakdownRow
+	stats            domain.AnalyticsStats
+	snapshotRefs     map[string][]domain.SnapshotRef
+	snapshotModels   map[int64][]domain.ModelQuota
+	currentModels    map[string][]domain.ModelQuotaAggregate
+	accountsErr      error
+	latestErr        error
+	historyErr       error
+	modelsErr        error
+	samplesErr       error
+	breakdownErr     error
+	statsErr         error
+	refsErr          error
+	snapModelsErr    error
+	currentModelsErr error
 }
 
 func (f *fakeStore) GetAllAccounts() ([]domain.AccountSummary, error) {
@@ -394,6 +396,13 @@ func (f *fakeStore) GetSnapshotHistory(email string, limit int, before time.Time
 
 func (f *fakeStore) GetLatestModelQuotas() ([]domain.ModelQuotaAggregate, error) {
 	return f.models, f.modelsErr
+}
+
+func (f *fakeStore) GetCurrentModelQuotas(email string, since time.Time) ([]domain.ModelQuotaAggregate, error) {
+	if f.currentModels != nil {
+		return f.currentModels[email], f.currentModelsErr
+	}
+	return nil, f.currentModelsErr
 }
 
 func (f *fakeStore) GetFractionSamplesSince(since time.Time) ([]domain.FractionSample, error) {

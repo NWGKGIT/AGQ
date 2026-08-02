@@ -268,6 +268,107 @@ func TestAccountFractionSamplesIncludeNulls(t *testing.T) {
 	}
 }
 
+func TestAnalyticsStatsTreatElapsedResetAsRefilled(t *testing.T) {
+	db := openTestDB(t)
+	defer db.Close()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	pastReset := now.Add(-time.Hour)
+	futureReset := now.Add(time.Hour)
+
+	// a's model is nearly empty but its cycle already reset server-side.
+	saveModels(t, db, "a@example.com", now.Add(-2*time.Hour), []domain.ModelQuota{
+		modelWithReset("Stale Depleted", "stale", 0.01, pastReset),
+	})
+	saveModels(t, db, "b@example.com", now.Add(-time.Minute), []domain.ModelQuota{
+		modelWithReset("Active Low", "active", 0.3, futureReset),
+	})
+
+	stats, err := db.GetAnalyticsStats(now)
+	if err != nil {
+		t.Fatalf("GetAnalyticsStats returned error: %v", err)
+	}
+	// The stale row counts as refilled, so the genuinely low active row wins.
+	if stats.MostDepletedModel == nil || stats.MostDepletedModel.Label != "Active Low" {
+		t.Fatalf("most depleted = %+v, want Active Low", stats.MostDepletedModel)
+	}
+	// The refilled account averages 1.0 and beats the active account's 0.3.
+	if stats.AccountMostRemaining == nil || stats.AccountMostRemaining.Email != "a@example.com" {
+		t.Fatalf("account most remaining = %+v, want a@example.com", stats.AccountMostRemaining)
+	}
+	// Only future resets qualify as "next reset".
+	if stats.NextReset == nil || stats.NextReset.Label != "Active Low" {
+		t.Fatalf("next reset = %+v, want Active Low", stats.NextReset)
+	}
+}
+
+func TestGetCurrentModelQuotasFallsBackToNewestNonNull(t *testing.T) {
+	db := openTestDB(t)
+	defer db.Close()
+
+	base := time.Date(2026, 7, 1, 10, 0, 0, 0, time.UTC)
+	// Older snapshot carries real fractions...
+	saveModels(t, db, "a@example.com", base, []domain.ModelQuota{
+		modelNoReset("Claude Sonnet", "claude", 0.5),
+		modelNoReset("Gemini", "gemini", 0.8),
+	})
+	// ...the newest snapshot reports null for claude but a value for gemini.
+	saveModels(t, db, "a@example.com", base.Add(time.Minute), []domain.ModelQuota{
+		{Label: "Claude Sonnet", ModelID: "claude"}, // nil fraction
+		modelNoReset("Gemini", "gemini", 0.7),
+	})
+
+	models, err := db.GetCurrentModelQuotas("a@example.com", base.Add(-time.Hour))
+	if err != nil {
+		t.Fatalf("GetCurrentModelQuotas returned error: %v", err)
+	}
+	if len(models) != 2 {
+		t.Fatalf("len(models) = %d, want 2", len(models))
+	}
+	byID := make(map[string]float64)
+	for _, m := range models {
+		if m.RemainingFraction == nil {
+			t.Fatalf("model %s has nil fraction, want non-null", m.ModelID)
+		}
+		byID[m.ModelID] = *m.RemainingFraction
+	}
+	if byID["claude"] != 0.5 {
+		t.Fatalf("claude = %v, want 0.5 from the older non-null capture", byID["claude"])
+	}
+	if byID["gemini"] != 0.7 {
+		t.Fatalf("gemini = %v, want 0.7 from the newest capture", byID["gemini"])
+	}
+}
+
+func TestGetCurrentModelQuotasRespectsWindowAndAccount(t *testing.T) {
+	db := openTestDB(t)
+	defer db.Close()
+
+	base := time.Date(2026, 7, 1, 10, 0, 0, 0, time.UTC)
+	saveModels(t, db, "a@example.com", base,
+		[]domain.ModelQuota{modelNoReset("Old Model", "old", 0.4)})
+	saveModels(t, db, "b@example.com", base.Add(time.Minute),
+		[]domain.ModelQuota{modelNoReset("Other Account", "other", 0.6)})
+
+	// Window excludes a's only capture.
+	models, err := db.GetCurrentModelQuotas("a@example.com", base.Add(time.Second))
+	if err != nil {
+		t.Fatalf("GetCurrentModelQuotas returned error: %v", err)
+	}
+	if len(models) != 0 {
+		t.Fatalf("len(models) = %d, want 0 outside window", len(models))
+	}
+
+	// b's rows never leak into a's results.
+	models, err = db.GetCurrentModelQuotas("a@example.com", base.Add(-time.Hour))
+	if err != nil {
+		t.Fatalf("GetCurrentModelQuotas returned error: %v", err)
+	}
+	if len(models) != 1 || models[0].ModelID != "old" {
+		t.Fatalf("models = %+v, want only a's model", models)
+	}
+}
+
 func TestSnapshotRefsAndModels(t *testing.T) {
 	db := openTestDB(t)
 	defer db.Close()

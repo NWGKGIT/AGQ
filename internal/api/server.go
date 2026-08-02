@@ -16,6 +16,11 @@ import (
 
 var localhostOrigin = regexp.MustCompile(`^https?://(localhost|127\.0\.0\.1)(:\d+)?$`)
 
+// currentModelsLookbackDays bounds how far back /models/current searches for a
+// model's newest non-null fraction. Older values are too stale to present as
+// "current", even with assumed-refill applied.
+const currentModelsLookbackDays = 14
+
 // Store is the persistence surface used by API handlers.
 type Store interface {
 	GetAllAccounts() ([]domain.AccountSummary, error)
@@ -23,6 +28,7 @@ type Store interface {
 	GetLatestSnapshot(email string) (*domain.QuotaSnapshot, error)
 	GetSnapshotHistory(email string, limit int, before time.Time) ([]domain.QuotaSnapshot, error)
 	GetLatestModelQuotas() ([]domain.ModelQuotaAggregate, error)
+	GetCurrentModelQuotas(email string, since time.Time) ([]domain.ModelQuotaAggregate, error)
 	GetFractionSamplesSince(since time.Time) ([]domain.FractionSample, error)
 	GetAccountFractionSamplesSince(email string, since time.Time) ([]domain.FractionSample, error)
 	GetBreakdown() ([]domain.BreakdownRow, error)
@@ -92,6 +98,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/accounts/{email}/snapshots", s.accountSnapshotsHandler)
 	mux.HandleFunc("GET /api/accounts/{email}/sparklines", s.accountSparklinesHandler)
 	mux.HandleFunc("GET /api/accounts/{email}/timeline", s.accountTimelineHandler)
+	mux.HandleFunc("GET /api/accounts/{email}/models/current", s.accountModelsCurrentHandler)
 	mux.HandleFunc("GET /api/models/latest", s.modelsLatestHandler)
 	mux.HandleFunc("GET /api/analytics/timeseries", s.analyticsTimeseriesHandler)
 	mux.HandleFunc("GET /api/analytics/breakdown", s.analyticsBreakdownHandler)
@@ -219,7 +226,7 @@ func (s *Server) currentAccountHandler(w http.ResponseWriter, r *http.Request) {
 			if ar.PlanName == "" {
 				ar.PlanName = snap.PlanName
 			}
-			sr := s.toSnapshotResponse(snap)
+			sr := s.toLatestSnapshotResponse(snap)
 			ar.LatestSnapshot = &sr
 		}
 
@@ -258,7 +265,7 @@ func (s *Server) currentAccountHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if snap != nil {
-				sr := s.toSnapshotResponse(snap)
+				sr := s.toLatestSnapshotResponse(snap)
 				ar.LatestSnapshot = &sr
 			}
 			resp.LastAccount = &ar
@@ -302,7 +309,7 @@ func (s *Server) accountsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if snap != nil {
-			sr := s.toSnapshotResponse(snap)
+			sr := s.toLatestSnapshotResponse(snap)
 			ar.LatestSnapshot = &sr
 		}
 		out = append(out, ar)
@@ -324,7 +331,7 @@ func (s *Server) accountLatestHandler(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusNotFound, "no snapshots found for account", nil)
 		return
 	}
-	s.writeJSON(w, http.StatusOK, s.toSnapshotResponse(snap))
+	s.writeJSON(w, http.StatusOK, s.toLatestSnapshotResponse(snap))
 }
 
 func (s *Server) accountSnapshotsHandler(w http.ResponseWriter, r *http.Request) {
@@ -374,10 +381,30 @@ func (s *Server) modelsLatestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]any{
-		"models": nilSafeSlice(models),
+		"models": applyAssumedRefillAggregates(nilSafeSlice(models), s.now()),
 	})
 }
 
+// accountModelsCurrentHandler serves each model's newest known quota value for
+// one account. Unlike the latest snapshot — which can carry null fractions —
+// every row here has a value: the newest non-null capture per model within the
+// lookback window, with assumed-refill applied for elapsed resets.
+func (s *Server) accountModelsCurrentHandler(w http.ResponseWriter, r *http.Request) {
+	email := r.PathValue("email")
+	since := s.now().UTC().AddDate(0, 0, -currentModelsLookbackDays)
+	models, err := s.store.GetCurrentModelQuotas(email, since)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, "failed to query current model quotas", err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, map[string]any{
+		"email":  email,
+		"models": applyAssumedRefillAggregates(nilSafeSlice(models), s.now()),
+	})
+}
+
+// toSnapshotResponse serves a snapshot as observed, without reinterpretation.
+// Used for history, where rows describe what was true at capture time.
 func (s *Server) toSnapshotResponse(snapshot *domain.QuotaSnapshot) snapshotResponse {
 	return snapshotResponse{
 		Email:                  snapshot.Email,
@@ -390,6 +417,15 @@ func (s *Server) toSnapshotResponse(snapshot *domain.QuotaSnapshot) snapshotResp
 		FlowCreditsMonthly:     snapshot.FlowCreditsMonthly,
 		Models:                 nilSafeSlice(snapshot.Models),
 	}
+}
+
+// toLatestSnapshotResponse serves a snapshot as a description of the present:
+// models whose reset has since passed are assumed refilled. Used wherever the
+// snapshot stands in for "current state" (latest-snapshot fields).
+func (s *Server) toLatestSnapshotResponse(snapshot *domain.QuotaSnapshot) snapshotResponse {
+	resp := s.toSnapshotResponse(snapshot)
+	resp.Models = applyAssumedRefill(resp.Models, s.now())
+	return resp
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
