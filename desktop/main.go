@@ -17,7 +17,7 @@ func main() {
 	app := NewApp()
 
 	err := wails.Run(&options.App{
-		Title:  "Antigravity Token Monitor",
+		Title:  "AGQ",
 		Width:  1280,
 		Height: 800,
 		// Keep the minimum small: tiling compositors (Hyprland, sway) size the
@@ -37,7 +37,7 @@ func main() {
 		Linux: &linux.Options{
 			WindowIsTranslucent: false,
 			WebviewGpuPolicy:    linux.WebviewGpuPolicyOnDemand,
-			ProgramName:         "antigravity-token-monitor",
+			ProgramName:         "agq",
 		},
 	})
 	if err != nil {

@@ -161,7 +161,7 @@ function MonitorSection() {
           <div className="space-y-2 py-2 text-sm">
             <p className="text-destructive">The monitor runtime is not reachable.</p>
             <p className="text-xs text-muted-foreground">
-              Restart Antigravity Token Monitor. It will reconnect automatically when the local
+              Restart AGQ. It will reconnect automatically when the local
               runtime becomes available.
             </p>
           </div>

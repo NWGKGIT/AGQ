@@ -26,7 +26,7 @@ $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $desktopDirectory = Resolve-Path (Join-Path $scriptDirectory '..\..')
 $stagingDirectory = Join-Path $desktopDirectory 'build\msix\staging'
 $outputDirectory = Join-Path $desktopDirectory 'build\msix'
-$outputPackage = Join-Path $outputDirectory "AntigravityTokenMonitor-$Version-x64.msix"
+$outputPackage = Join-Path $outputDirectory "AGQ-$Version-x64.msix"
 
 function Resolve-WindowsSdkTool {
     param([Parameter(Mandatory = $true)][string]$Name)
@@ -55,14 +55,14 @@ function ConvertTo-XmlText {
 if (-not $SkipBuild) {
     Push-Location $desktopDirectory
     try {
-        wails build -clean -trimpath -platform windows/amd64 -webview2 browser -o AntigravityTokenMonitor.exe
+        wails build -clean -trimpath -platform windows/amd64 -webview2 browser -o AGQ.exe
     }
     finally {
         Pop-Location
     }
 }
 
-$executable = Join-Path $desktopDirectory 'build\bin\AntigravityTokenMonitor.exe'
+$executable = Join-Path $desktopDirectory 'build\bin\AGQ.exe'
 if (-not (Test-Path $executable -PathType Leaf)) {
     throw "Desktop executable is missing: $executable"
 }
@@ -71,7 +71,7 @@ if (Test-Path $stagingDirectory) {
     Remove-Item -Path $stagingDirectory -Recurse -Force
 }
 New-Item -ItemType Directory -Path (Join-Path $stagingDirectory 'Assets') -Force | Out-Null
-Copy-Item $executable (Join-Path $stagingDirectory 'AntigravityTokenMonitor.exe')
+Copy-Item $executable (Join-Path $stagingDirectory 'AGQ.exe')
 Copy-Item (Join-Path $scriptDirectory 'assets\*.png') (Join-Path $stagingDirectory 'Assets')
 
 $manifest = Get-Content (Join-Path $scriptDirectory 'Package.appxmanifest.in') -Raw

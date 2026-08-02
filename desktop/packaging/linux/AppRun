@@ -5,4 +5,4 @@ appdir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 export PATH="${appdir}/usr/bin:${PATH}"
 export XDG_DATA_DIRS="${appdir}/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 
-exec "${appdir}/usr/bin/AntigravityTokenMonitor" "$@"
+exec "${appdir}/usr/bin/AGQ" "$@"

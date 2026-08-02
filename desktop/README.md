@@ -1,6 +1,6 @@
-# Antigravity Token Monitor Desktop
+# AGQ Desktop
 
-Wails + React desktop dashboard for [Antigravity Token Monitor](../README.md).
+Wails + React desktop dashboard for [AGQ](../README.md), the local quota monitor for Antigravity.
 The desktop process starts the monitoring runtime itself and the React frontend
 uses typed Wails bindings. Existing Linux users can continue to run the legacy
 headless daemon on `localhost:${AGQ_PORT:-7432}` during migration.
@@ -9,8 +9,8 @@ headless daemon on `localhost:${AGQ_PORT:-7432}` during migration.
 
 - **Overview** — provider aggregate strip (Gemini / Anthropic / OpenAI),
   live/idle daemon status with poll cadence, account cards with per-model
-  quota bars, and a per-account detail sheet: pool status, 7-day sparklines,
-  inferred login history, recent snapshots.
+  quota bars, and a per-account detail sheet: per-model colored quotas,
+  inferred login history, and recent snapshots.
 - **Analytics** — headline stats, remaining-quota-over-time chart (7d/30d,
   avg/min), and a sortable per-account consumption breakdown.
 - **Settings** — daemon port with connection test, light/dark/system theme,
@@ -30,7 +30,7 @@ directory; theme preference persists locally in the webview.
 
 ```sh
 wails dev -tags webkit2_41     # hot reload
-wails build -tags webkit2_41   # production binary at build/bin/AntigravityTokenMonitor
+wails build -tags webkit2_41   # production binary at build/bin/AGQ
 ```
 
 Or from the repository root: `make desktop-dev` / `make desktop-build`.

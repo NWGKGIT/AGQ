@@ -33,8 +33,10 @@ export function Sidebar({
           <CircleGauge className="size-4" aria-hidden="true" />
         </div>
         <div className="hidden min-w-0 leading-tight md:block">
-          <span className="block truncate text-sm font-semibold">Antigravity</span>
-          <span className="block truncate text-xs text-muted-foreground">Token Monitor</span>
+          <span className="block truncate text-sm font-semibold">AGQ</span>
+          <span className="block truncate text-xs text-muted-foreground">
+            Quota monitor for Antigravity
+          </span>
         </div>
       </div>
       <nav className="flex flex-1 flex-col gap-1 p-2">

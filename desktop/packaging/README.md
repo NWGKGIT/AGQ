@@ -1,7 +1,7 @@
 # Release packaging
 
 This directory contains reproducible branding inputs and release scaffolding
-for **Antigravity Token Monitor**. Release outputs are written below
+for **AGQ**. Release outputs are written below
 `desktop/build/` and are intentionally not committed.
 
 The app is an unofficial, local monitor and is not affiliated with

@@ -10,8 +10,8 @@ type ThemeProviderState = {
 
 const ThemeProviderContext = createContext<ThemeProviderState | undefined>(undefined)
 
-const STORAGE_KEY = 'antigravity-token-monitor-theme'
-const LEGACY_STORAGE_KEY = 'agq-theme'
+const STORAGE_KEY = 'agq-theme'
+const LEGACY_STORAGE_KEY = 'antigravity-token-monitor-theme'
 
 function systemTheme(): 'dark' | 'light' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'

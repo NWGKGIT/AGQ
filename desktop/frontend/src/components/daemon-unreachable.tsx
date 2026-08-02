@@ -14,7 +14,7 @@ export function DaemonUnreachable() {
             The built-in monitor runtime is not running, so no quota data is available.
           </p>
           <p className="text-xs text-muted-foreground">
-            Restart Antigravity Token Monitor. The dashboard reconnects automatically when the
+            Restart AGQ. The dashboard reconnects automatically when the
             runtime becomes available.
           </p>
         </CardContent>

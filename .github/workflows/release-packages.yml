@@ -66,7 +66,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: AntigravityTokenMonitor-windows-x64
+          name: AGQ-windows-x64
           path: |
             desktop/build/msix/*.msix
             desktop/build/msix/*.sha256
@@ -111,7 +111,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: AntigravityTokenMonitor-linux-x86_64
+          name: AGQ-linux-x86_64
           path: |
             desktop/build/appimage/*.AppImage
             desktop/build/appimage/*.sha256

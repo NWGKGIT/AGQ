@@ -22,7 +22,7 @@ render_png() {
 }
 
 render_png 1024 "${desktop_dir}/build/appicon.png"
-render_png 512 "${script_dir}/linux/antigravity-token-monitor.png"
+render_png 512 "${script_dir}/linux/agq.png"
 render_png 50 "${script_dir}/windows/assets/StoreLogo.png"
 render_png 44 "${script_dir}/windows/assets/Square44x44Logo.png"
 render_png 150 "${script_dir}/windows/assets/Square150x150Logo.png"
@@ -42,4 +42,4 @@ magick \
   "${asset_tmp_dir}/icon-256.png" \
   "${desktop_dir}/build/windows/icon.ico"
 
-echo "Generated Antigravity Token Monitor packaging assets."
+echo "Generated AGQ packaging assets."
