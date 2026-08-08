@@ -27,6 +27,9 @@ export function StatusHeader({ masked }: { masked: boolean }) {
         <span className="font-mono text-sm">
           {display(email)}
           {!active && <span className="ml-2 text-xs text-muted-foreground">last seen</span>}
+          <span className="ml-2 text-xs text-muted-foreground">
+            (<a href="#" onClick={(e) => e.preventDefault()} title="Restart Antigravity if the account looks wrong" className="underline underline-offset-1 hover:text-foreground">restart for refresh</a>)
+          </span>
         </span>
       )}
       <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">

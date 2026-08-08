@@ -1,260 +1,122 @@
-# Antigravity Token Monitor
+# AGQ
 
-Antigravity Token Monitor is a local-first desktop dashboard that tracks quota
-usage for authenticated Antigravity language-server processes. The desktop app
-embeds discovery, polling, persistence, and analytics; an optional headless
-daemon exposes the same data through a local JSON API for advanced Linux use.
+**AGQ** is a local-first desktop app that monitors your model quotas for
+[Antigravity](https://antigravity.google). It discovers the Antigravity
+language server running on your machine, polls its local API for per-model
+quota levels, and turns the history into a dashboard: remaining percentages
+per model and provider, reset countdowns, consumption analytics, and inferred
+login sessions — for every account you use.
 
-The daemon is intentionally local-first:
+Everything runs on your machine. AGQ never talks to any external service:
+it probes loopback ports only, authenticates with the language server's own
+CSRF token, and stores snapshots in a local SQLite database.
 
-- It discovers Antigravity language servers from `/proc`.
-- It probes loopback ports only, using the language server's CSRF token.
-- It stores snapshots in `~/.agq/agq.db`.
-- It serves the API on `localhost:${AGQ_PORT:-7432}`.
+- **Desktop app** for Linux (AppImage) and Windows (Microsoft Store, MSIX)
+- **Optional headless daemon** for Linux servers/tinkerers, exposing the same
+  data as a local JSON API
 
-## Build And Run
+## Highlights
+
+- **Per-model quotas** — remaining percentage for every model (Gemini,
+  Anthropic, OpenAI pools), colored by provider, with reset countdowns.
+- **Multi-account** — every account the monitor has ever seen, with health
+  states, live/idle status, and a per-account detail sheet.
+- **Analytics** — remaining-quota trend per provider (7d/30d), most depleted
+  model, next reset, and a sortable per-model consumption breakdown.
+- **Smart about resets** — if a quota reset passes while you're logged out or
+  the app is off, AGQ serves the pool as refilled (flagged "assumed") instead
+  of showing a stale depleted number forever.
+- **Login timeline** — inferred login/logout sessions from snapshot gaps.
+- **Privacy switches** — email masking for screenshots; the local API is only
+  exposed on a loopback port if you opt in.
+
+## Install
+
+### Linux
+
+Download the latest `AGQ-x86_64.AppImage` from Releases, then:
 
 ```sh
-make build
-make run
+chmod +x AGQ-x86_64.AppImage
+./AGQ-x86_64.AppImage
 ```
 
-Run tests with:
+### Windows
+
+Install **AGQ** from the Microsoft Store (or sideload the `.msix` from
+Releases).
+
+## Build From Source
+
+Requirements: Go 1.26+, Node 24+, and the [Wails v2 CLI](https://wails.io).
+On Linux additionally GTK3 and webkit2gtk-4.1.
 
 ```sh
-make test
+make desktop-build    # binary at desktop/build/bin/AGQ
+make desktop-dev      # hot-reload development
+make desktop-appimage # x86_64 AppImage release artifact
 ```
 
-If your Go build cache is not writable in a restricted environment, set it to a
-temporary directory:
+Run the test suites:
+
+```sh
+make test          # Go packages (daemon + monitor core)
+make desktop-test  # desktop Go tests + frontend tests + typecheck/build
+make docker-test   # the Go suite inside a container
+```
+
+If your Go build cache is not writable in a restricted environment:
 
 ```sh
 GOCACHE=/tmp/agq-go-cache go test ./...
 ```
 
-## Desktop App
+## Optional Headless Daemon (Linux)
 
-A Wails + React desktop dashboard lives in `desktop/`. It talks to the
-daemon's local API through its Go backend, so nothing extra is served over
-HTTP. Requires the [Wails v2 CLI](https://wails.io) and, on Linux, GTK3 +
-webkit2gtk-4.1.
-
-```sh
-make desktop-build   # binary at desktop/build/bin/AntigravityTokenMonitor
-make desktop-dev     # hot-reload development
-make desktop-appimage # x86_64 AppImage release artifact
-```
-
-## Optional Headless Linux Service
+The desktop app embeds the monitor; nothing else is required. For servers or
+scripting, a standalone daemon serves the same JSON API on
+`localhost:${AGQ_PORT:-7432}`:
 
 ```sh
-make install
-make enable
+make build     # compile agq-daemon
+make install   # install binary + systemd user unit
+make enable    # start on login
 ```
 
-Useful service commands:
-
-```sh
-make status
-make logs
-make disable
-make uninstall
-```
-
-The systemd unit runs `/usr/local/bin/agq-daemon` and appends logs to
-`~/.agq/agq.log`.
+`make status`, `make logs`, `make disable`, and `make uninstall` manage the
+service. A containerized build is also available (`make docker-build`); note
+that process discovery needs the host PID namespace (`docker run --pid=host`).
 
 ## Configuration
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `AGQ_PORT` | `7432` | Local HTTP API port. |
+| `AGQ_PORT` | `7432` | Local HTTP API port (daemon, or desktop with "Expose API" on). |
 
-## Architecture
+Desktop settings (theme, email masking, API exposure) live in
+`~/.agq/desktop.json` and are editable from the Settings page.
 
-The code is organized around narrow packages under `internal/`:
+## Data
 
-| Package | Responsibility |
+AGQ stores runtime data under `~/.agq`:
+
+- `agq.db` — SQLite snapshot history (WAL mode, safe for concurrent readers)
+- `agq.log` — JSON log file (headless daemon)
+
+## Documentation
+
+Extensive technical documentation lives in [`docs/`](docs/):
+
+| Document | Contents |
 | --- | --- |
-| `cmd/agq-daemon` | Process setup, logging, signal handling, and wiring. |
-| `internal/domain` | Shared domain types. |
-| `internal/detector` | `/proc` scanning, command-line parsing, and loopback port discovery. |
-| `internal/languageserver` | `GetUserStatus` HTTP client and response parser. |
-| `internal/poller` | Poll scheduling, account deduplication, persistence, and daemon status updates. |
-| `internal/store` | SQLite schema, migrations, writes, and read queries. |
-| `internal/state` | Thread-safe daemon status snapshots. |
-| `internal/api` | Local HTTP API handlers and CORS policy. |
+| [architecture.md](docs/architecture.md) | Package map, runtime flow, desktop vs daemon modes |
+| [detection.md](docs/detection.md) | How language servers are discovered on Linux and Windows |
+| [data-and-logic.md](docs/data-and-logic.md) | Snapshot model, reset cycles, assumed-refill semantics, session inference |
+| [api.md](docs/api.md) | Full JSON API reference |
+| [frontend.md](docs/frontend.md) | Design system, component map, data-fetch cadence |
+| [development.md](docs/development.md) | Building, testing, packaging, release checklist |
 
-Runtime flow:
+## Disclaimer
 
-1. The detector scans `/proc/*/cmdline` every 15 seconds.
-2. Matching language server processes are inspected for loopback listening ports.
-3. Candidate ports are probed over HTTPS, then HTTP, with `GetUserStatus`.
-4. The poller polls active processes every 60 seconds.
-5. Successful snapshots are deduplicated by email and persisted to SQLite.
-6. The API serves daemon status, accounts, snapshots, and latest model quotas.
-
-After five consecutive all-failure poll cycles, the poller backs off to a
-five-minute interval. A later successful poll restores the normal interval.
-
-## API
-
-All endpoints are read-only JSON endpoints. CORS is allowed for
-`localhost` and `127.0.0.1` origins.
-
-### `GET /api/health`
-
-Returns daemon liveness and uptime:
-
-```json
-{
-  "status": "ok",
-  "uptime": "1m0s"
-}
-```
-
-### `GET /api/status`
-
-Returns current daemon state:
-
-```json
-{
-  "state": "ACTIVE",
-  "emails": ["user@example.com"],
-  "uptime": "1m0s",
-  "started_at": "2026-07-01T12:00:00Z",
-  "last_poll_at": "2026-07-01T12:01:00Z",
-  "next_poll_at": "2026-07-01T12:02:00Z"
-}
-```
-
-### `GET /api/accounts`
-
-Returns all known accounts ordered by `last_seen`, including each account's
-latest snapshot when available.
-
-### `GET /api/account/current`
-
-Returns the account(s) currently logged in to Antigravity, reflecting live
-daemon state joined with the newest persisted snapshot for each. When idle,
-`state` is `IDLE` and `accounts` is empty.
-
-`is_live` is `true` only while the daemon is actively polling a language
-server. When idle, `last_account` carries the most recently seen account from
-the database (with its latest snapshot when available) so frontends can show
-"last known account" instead of a blank state; `is_live: false` signals that
-this data is historical, not a confirmed live session. `next_poll_at` mirrors
-the field from `/api/status`.
-
-```json
-{
-  "state": "ACTIVE",
-  "is_live": true,
-  "email": "user@example.com",
-  "account": {
-    "id": 1,
-    "email": "user@example.com",
-    "plan_name": "Pro",
-    "first_seen": "2026-07-01T10:00:00Z",
-    "last_seen": "2026-07-01T11:59:00Z",
-    "latest_snapshot": { "staleness_seconds": 15 }
-  },
-  "accounts": [{ "email": "user@example.com" }],
-  "last_poll_at": "2026-07-01T12:01:00Z",
-  "next_poll_at": "2026-07-01T12:02:00Z",
-  "as_of": "2026-07-01T12:01:15Z"
-}
-```
-
-When idle:
-
-```json
-{
-  "state": "IDLE",
-  "is_live": false,
-  "accounts": [],
-  "last_account": {
-    "email": "user@example.com",
-    "latest_snapshot": { "staleness_seconds": 600 }
-  },
-  "as_of": "2026-07-01T12:01:15Z"
-}
-```
-
-### `GET /api/accounts/{email}/latest`
-
-Returns the latest snapshot for an account, or `404` when no snapshot exists.
-
-### `GET /api/accounts/{email}/snapshots?limit=50&before=<RFC3339>`
-
-Returns snapshot history newest-first. `limit` defaults to 50 and is clamped by
-the store to the range `1..200`. `before` is optional.
-
-Invalid `limit` or `before` values return `400`.
-
-### `GET /api/models/latest`
-
-Returns model quota rows from the newest snapshot of each known account.
-
-### `GET /api/analytics/timeseries?range=7d|30d&agg=avg|min`
-
-Returns, for each day in the range, the aggregated remaining fraction per
-provider (`Gemini`, `Anthropic`, `OpenAI`) across all accounts. `range` defaults
-to `7d`; `agg` defaults to `avg`. Days with no provider data are omitted, but a
-day that is present always carries all three provider keys, using `null` where a
-provider had no data that day. Invalid `range` or `agg` values return `400`.
-
-### `GET /api/analytics/breakdown`
-
-Returns a flat `rows` table of every account × model with its current fraction,
-reset time, and — when the current quota cycle has a distinct earlier snapshot —
-its starting fraction and consumed delta. Rows lacking sufficient data omit
-`starting_fraction` and `consumed` rather than guessing. Rows are returned
-most-consumed first; the frontend re-sorts client-side.
-
-### `GET /api/analytics/stats`
-
-Returns four server-computed headline figures: total polls in the last seven
-days, the most depleted model, the account with the most remaining quota, and
-the soonest upcoming reset. Figures with no supporting data are `null`.
-
-### `GET /api/accounts/{email}/sparklines`
-
-Returns a per-model time series for the last seven days, one point per snapshot,
-ascending by time. Null fractions are preserved so the frontend can render gaps.
-
-### `GET /api/accounts/{email}/timeline`
-
-Returns inferred login/logout events for the last seven days, ascending by time.
-A gap between consecutive snapshots wider than the session-gap threshold closes
-one session and opens the next. Each event carries a quota summary at that
-boundary grouped by provider.
-
-## Data Files
-
-The daemon stores local runtime data under `~/.agq`:
-
-- `agq.db`: SQLite database.
-- `agq.log`: JSON log file.
-
-The SQLite database uses WAL mode so dashboard readers can read while the daemon
-writes.
-
-## Development Notes
-
-Keep package dependencies flowing inward:
-
-- `cmd/agq-daemon` may import every internal package.
-- `api`, `poller`, and `detector` depend on interfaces where practical.
-- `domain` has no project-internal dependencies.
-- `store` owns SQL details and returns `domain` types.
-- `languageserver` owns Antigravity response parsing and HTTP request details.
-
-Prefer adding tests at package boundaries. Existing coverage focuses on:
-
-- Language server JSON parsing.
-- `/proc/net/tcp` parsing and command-line flag extraction.
-- Thread-safe status snapshots.
-- SQLite persistence and queries.
-- API error/status behavior.
-- Poller deduplication and idle transitions.
+AGQ is an unofficial, local monitoring tool and is not affiliated with
+Antigravity or any model provider.

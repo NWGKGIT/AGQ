@@ -5,7 +5,7 @@ UNIT     := agq.service
 CMD      := ./cmd/agq-daemon
 BUILDFLAGS ?= -buildvcs=false
 
-.PHONY: build test install enable disable uninstall clean run desktop-build desktop-dev desktop-test desktop-appimage brand-assets
+.PHONY: build test install enable disable uninstall clean run desktop-build desktop-dev desktop-test desktop-appimage brand-assets docker-build docker-test
 
 ## build — compile the daemon binary
 build:
@@ -14,6 +14,14 @@ build:
 ## test — run all package tests
 test:
 	go test ./...
+
+## docker-build — build the containerized headless daemon image
+docker-build:
+	docker build -t agq-daemon .
+
+## docker-test — run vet + the Go test suite inside a container
+docker-test:
+	docker build --target test -t agq-test .
 
 ## run — build and run locally (Ctrl-C to stop)
 run: build

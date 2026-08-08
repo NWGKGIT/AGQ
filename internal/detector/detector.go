@@ -78,6 +78,17 @@ func (s *Scanner) ScanAll() []*domain.ProcessInfo {
 		return nil
 	}
 
+	// Sort candidates by PID descending so we probe newer processes first.
+	// When multiple language servers are running (e.g., after account switch),
+	// this heuristic prefers the most recently spawned process.
+	for i := 0; i < len(candidates); i++ {
+		for j := i + 1; j < len(candidates); j++ {
+			if candidates[j].pid > candidates[i].pid {
+				candidates[i], candidates[j] = candidates[j], candidates[i]
+			}
+		}
+	}
+
 	results := make([]*domain.ProcessInfo, 0, len(candidates))
 	for _, candidate := range candidates {
 		if info, ok := s.tryCandidate(candidate); ok {
