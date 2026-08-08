@@ -5,6 +5,9 @@
 	"info": {
 		"0000": {
 			"ProductVersion": "{{.Info.ProductVersion}}",
+			"FileVersion": "{{.Info.ProductVersion}}",
+			"InternalName": "AGQ",
+			"OriginalFilename": "AGQ.exe",
 			"CompanyName": "{{.Info.CompanyName}}",
 			"FileDescription": "{{.Info.ProductName}}",
 			"LegalCopyright": "{{.Info.Copyright}}",

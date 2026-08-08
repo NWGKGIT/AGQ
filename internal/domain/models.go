@@ -32,6 +32,11 @@ type ProcessInfo struct {
 //
 // PoolResetTime mirrors ResetTime because models sharing the same reset value
 // belong to the same quota pool and can be grouped by the dashboard.
+//
+// AssumedRefilled is never persisted: the API sets it at serve time when the
+// stored reset time has passed, meaning the quota refilled server-side while
+// no fresh poll was possible (logged out, daemon down). The served fraction is
+// then an assumed 1.0 rather than observed data.
 type ModelQuota struct {
 	Label             string     `json:"label"`
 	ModelID           string     `json:"model_id"`
@@ -41,6 +46,7 @@ type ModelQuota struct {
 	ResetTime         *time.Time `json:"reset_time,omitempty"`
 	PoolResetTime     *time.Time `json:"pool_reset_time,omitempty"`
 	TimeUntilResetMs  *int64     `json:"time_until_reset_ms,omitempty"`
+	AssumedRefilled   bool       `json:"assumed_refilled,omitempty"`
 }
 
 // QuotaSnapshot is the fully parsed result of one successful poll, ready for
@@ -141,7 +147,9 @@ type NextReset struct {
 	ResetTime string `json:"reset_time"`
 }
 
-// ModelQuotaAggregate is returned by GET /api/models/latest.
+// ModelQuotaAggregate is returned by GET /api/models/latest and
+// GET /api/accounts/{email}/models/current. AssumedRefilled mirrors
+// ModelQuota.AssumedRefilled and is set at serve time only.
 type ModelQuotaAggregate struct {
 	Label             string   `json:"label"`
 	ModelID           string   `json:"model_id"`
@@ -153,4 +161,5 @@ type ModelQuotaAggregate struct {
 	Email             string   `json:"email"`
 	CapturedAt        string   `json:"captured_at"`
 	StalenessSeconds  int64    `json:"staleness_seconds"`
+	AssumedRefilled   bool     `json:"assumed_refilled,omitempty"`
 }

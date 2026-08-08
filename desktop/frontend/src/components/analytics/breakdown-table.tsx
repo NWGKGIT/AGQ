@@ -11,9 +11,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { useBreakdown } from '@/lib/api'
+import { useBreakdown, useStats } from '@/lib/api'
 import { maskEmail, pct, until } from '@/lib/format'
-import { PROVIDERS, classifyProvider, type Provider } from '@/lib/providers'
+import { PROVIDERS, PROVIDER_COLORS, classifyProvider, type Provider } from '@/lib/providers'
 import { cn } from '@/lib/utils'
 import type { apiclient } from '../../../wailsjs/go/models'
 
@@ -23,10 +23,9 @@ type Row = apiclient.BreakdownRow & { provider: Provider | null }
 
 const columns: { key: SortKey; title: string; align?: 'right' }[] = [
   { key: 'email', title: 'Account' },
-  { key: 'provider', title: 'Provider' },
   { key: 'label', title: 'Model' },
+  { key: 'current', title: 'Remaining' },
   { key: 'starting', title: 'Start' },
-  { key: 'current', title: 'Current' },
   { key: 'consumed', title: 'Consumed' },
   { key: 'reset', title: 'Resets', align: 'right' },
 ]
@@ -51,6 +50,40 @@ function accessor(row: Row, key: SortKey): string | number | null {
   }
 }
 
+/** Remaining quota as a provider-colored bar with the percentage beside it. */
+function RemainingCell({ row }: { row: Row }) {
+  const fraction = row.current_fraction
+  if (fraction == null) return <span className="text-muted-foreground">–</span>
+  const clamped = Math.max(0, Math.min(1, fraction))
+  const low = clamped < 0.1
+  const color = low
+    ? 'var(--destructive)'
+    : row.provider
+      ? PROVIDER_COLORS[row.provider]
+      : 'var(--muted-foreground)'
+  return (
+    <div className="flex items-center gap-2">
+      <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full transition-all duration-300"
+          style={{ width: `${clamped * 100}%`, backgroundColor: color }}
+        />
+      </div>
+      <span className={cn('tnum font-mono text-xs', low && 'font-semibold text-destructive')}>
+        {pct(fraction)}
+      </span>
+      {row.assumed_refilled && (
+        <span
+          className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+          title="The reset time passed with no fresh poll; quota is assumed refilled."
+        >
+          assumed
+        </span>
+      )}
+    </div>
+  )
+}
+
 function ConsumedCell({ consumed }: { consumed: number | null | undefined }) {
   if (consumed == null) return <span className="text-muted-foreground">–</span>
   const clamped = Math.max(0, Math.min(1, consumed))
@@ -62,7 +95,7 @@ function ConsumedCell({ consumed }: { consumed: number | null | undefined }) {
           style={{ width: `${clamped * 100}%` }}
         />
       </div>
-      <span className="font-mono text-xs">{pct(consumed)}</span>
+      <span className="tnum font-mono text-xs">{pct(consumed)}</span>
     </div>
   )
 }
@@ -70,6 +103,7 @@ function ConsumedCell({ consumed }: { consumed: number | null | undefined }) {
 /** Account x model consumption table with client-side sort and provider filter. */
 export function BreakdownTable({ masked }: { masked: boolean }) {
   const { data, isPending } = useBreakdown()
+  const { data: stats } = useStats()
   const [sortKey, setSortKey] = useState<SortKey>('consumed')
   const [descending, setDescending] = useState(true)
   const [providerFilter, setProviderFilter] = useState<Provider | null>(null)
@@ -103,17 +137,24 @@ export function BreakdownTable({ masked }: { masked: boolean }) {
   return (
     <Card className="overflow-hidden">
       <div className="flex items-center justify-between border-b p-4">
-        <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-          Per-account breakdown
-        </h2>
+        <div className="flex items-baseline gap-3">
+          <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+            Per-model breakdown
+          </h2>
+          {stats && (
+            <span className="tnum font-mono text-[11px] text-muted-foreground/70">
+              {stats.total_polls_this_week.toLocaleString()} polls this week
+            </span>
+          )}
+        </div>
         <div className="flex gap-1">
           <button
             onClick={() => setProviderFilter(null)}
             className={cn(
-              'rounded-md px-2 py-1 text-xs transition-colors',
+              'rounded-md px-2 py-1 text-xs transition-colors duration-150',
               providerFilter === null
                 ? 'bg-accent text-accent-foreground'
-                : 'text-muted-foreground hover:text-foreground',
+                : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
             )}
           >
             All
@@ -123,12 +164,17 @@ export function BreakdownTable({ masked }: { masked: boolean }) {
               key={p}
               onClick={() => setProviderFilter(providerFilter === p ? null : p)}
               className={cn(
-                'rounded-md px-2 py-1 text-xs transition-colors',
+                'flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors duration-150',
                 providerFilter === p
                   ? 'bg-accent text-accent-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
+                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
               )}
             >
+              <span
+                className="size-1.5 rounded-full"
+                style={{ backgroundColor: PROVIDER_COLORS[p] }}
+                aria-hidden="true"
+              />
               {p}
             </button>
           ))}
@@ -172,23 +218,30 @@ export function BreakdownTable({ masked }: { masked: boolean }) {
                 <TableCell className="font-mono text-xs text-muted-foreground">
                   {masked ? maskEmail(row.email) : row.email}
                 </TableCell>
-                <TableCell className="text-xs">{row.provider ?? '–'}</TableCell>
                 <TableCell className="text-xs" title={row.model_id}>
-                  {row.label}
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className="size-1.5 shrink-0 rounded-full"
+                      style={{
+                        backgroundColor: row.provider
+                          ? PROVIDER_COLORS[row.provider]
+                          : 'var(--muted-foreground)',
+                      }}
+                      aria-hidden="true"
+                    />
+                    {row.label}
+                  </span>
                 </TableCell>
-                <TableCell className="font-mono text-xs">{pct(row.starting_fraction)}</TableCell>
-                <TableCell
-                  className={cn(
-                    'font-mono text-xs',
-                    row.current_fraction != null && row.current_fraction < 0.1 && 'text-destructive',
-                  )}
-                >
-                  {pct(row.current_fraction)}
+                <TableCell>
+                  <RemainingCell row={row} />
+                </TableCell>
+                <TableCell className="tnum font-mono text-xs">
+                  {pct(row.starting_fraction)}
                 </TableCell>
                 <TableCell>
                   <ConsumedCell consumed={row.consumed} />
                 </TableCell>
-                <TableCell className="text-right font-mono text-xs">
+                <TableCell className="tnum text-right font-mono text-xs">
                   {row.reset_time ? until(row.reset_time) : '–'}
                 </TableCell>
               </TableRow>

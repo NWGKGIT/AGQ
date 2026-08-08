@@ -1,5 +1,5 @@
 /**
- * Provider grouping, mirroring the daemon's classifyProvider so client-side
+ * Provider grouping, mirroring the monitor's classifyProvider so client-side
  * grouping (account cards) matches server-side aggregates (analytics).
  */
 

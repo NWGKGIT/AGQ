@@ -5,7 +5,7 @@ UNIT     := agq.service
 CMD      := ./cmd/agq-daemon
 BUILDFLAGS ?= -buildvcs=false
 
-.PHONY: build test install enable disable uninstall clean run desktop-build desktop-dev desktop-test
+.PHONY: build test install enable disable uninstall clean run desktop-build desktop-dev desktop-test desktop-appimage brand-assets docker-build docker-test
 
 ## build — compile the daemon binary
 build:
@@ -14,6 +14,14 @@ build:
 ## test — run all package tests
 test:
 	go test ./...
+
+## docker-build — build the containerized headless daemon image
+docker-build:
+	docker build -t agq-daemon .
+
+## docker-test — run vet + the Go test suite inside a container
+docker-test:
+	docker build --target test -t agq-test .
 
 ## run — build and run locally (Ctrl-C to stop)
 run: build
@@ -30,7 +38,7 @@ install: build
 ## enable — enable and start the service now
 enable:
 	systemctl --user enable --now $(UNIT)
-	@echo "Service enabled. Check status with: systemctl --user status agq"
+	@echo "Service enabled. Check status with: systemctl --user status $(UNIT)"
 
 ## disable — stop and disable the service
 disable:
@@ -57,7 +65,16 @@ desktop-dev:
 ## desktop-test — run desktop Go tests and frontend typecheck/build
 desktop-test:
 	cd desktop && go test ./...
+	cd desktop/frontend && npm test
 	cd desktop/frontend && npm run build
+
+## brand-assets — regenerate Wails, Windows Store, and AppImage icons
+brand-assets:
+	cd desktop && ./packaging/generate-assets.sh
+
+## desktop-appimage — build the x86_64 AppImage release artifact
+desktop-appimage:
+	cd desktop && ./packaging/linux/build-appimage.sh
 
 ## logs — tail the daemon log
 logs:

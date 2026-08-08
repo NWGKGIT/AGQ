@@ -15,7 +15,7 @@ export function AnalyticsPage() {
   const masked = cfg?.mask_emails ?? false
 
   if (error && isDaemonUnreachable(error)) {
-    return <DaemonUnreachable port={cfg?.port} />
+    return <DaemonUnreachable />
   }
 
   return (

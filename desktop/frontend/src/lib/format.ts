@@ -15,13 +15,14 @@ export function ago(seconds: number): string {
   return `${Math.floor(seconds / 86400)}d`
 }
 
-/** Formats a future instant as a compact countdown: 12m, 4h 22m, 3d 4h. */
+/** Formats a future instant as a compact countdown: <1m, 12m, 4h 22m, 3d 4h. */
 export function until(iso: string | null | undefined, now = new Date()): string {
   if (!iso) return '–'
   const ms = new Date(iso).getTime() - now.getTime()
   if (Number.isNaN(ms)) return '–'
-  if (ms <= 0) return 'now'
+  if (ms <= 0) return 'due'
   const minutes = Math.floor(ms / 60000)
+  if (minutes < 1) return '<1m'
   if (minutes < 60) return `${minutes}m`
   const hours = Math.floor(minutes / 60)
   if (hours < 24) return `${hours}h ${minutes % 60}m`

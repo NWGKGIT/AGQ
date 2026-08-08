@@ -3,22 +3,14 @@ package apiclient
 import (
 	"errors"
 	"net/http"
-	"net/http/httptest"
-	"strconv"
 	"strings"
 	"testing"
 )
 
-// testClient points a Client at a httptest server.
+// testClient points a Client at an in-process handler.
 func testClient(t *testing.T, handler http.Handler) *Client {
 	t.Helper()
-	srv := httptest.NewServer(handler)
-	t.Cleanup(srv.Close)
-	port, err := strconv.Atoi(strings.TrimPrefix(srv.URL, "http://127.0.0.1:"))
-	if err != nil {
-		t.Fatalf("unexpected test server URL %q", srv.URL)
-	}
-	return New(port)
+	return New(func() http.Handler { return handler })
 }
 
 func TestCurrentAccountDecodesResponse(t *testing.T) {
@@ -118,13 +110,11 @@ func TestErrorEnvelopeIsSurfaced(t *testing.T) {
 	}
 }
 
-func TestConnectionFailureIsUnreachable(t *testing.T) {
-	// Point at a server that is already closed.
-	srv := httptest.NewServer(http.NotFoundHandler())
-	port, _ := strconv.Atoi(strings.TrimPrefix(srv.URL, "http://127.0.0.1:"))
-	srv.Close()
+func TestNilHandlerIsUnreachable(t *testing.T) {
+	// The handler source returns nil while the monitor runtime is stopped.
+	c := New(func() http.Handler { return nil })
 
-	_, err := New(port).Health()
+	_, err := c.Health()
 	if !errors.Is(err, ErrDaemonUnreachable) {
 		t.Fatalf("err = %v, want ErrDaemonUnreachable", err)
 	}

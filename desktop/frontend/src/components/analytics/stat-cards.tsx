@@ -2,25 +2,40 @@ import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useStats } from '@/lib/api'
 import { maskEmail, pct, until } from '@/lib/format'
-import { classifyProvider } from '@/lib/providers'
+import { classifyProvider, PROVIDER_COLORS } from '@/lib/providers'
 
 function StatCard({
   label,
   value,
   detail,
+  accentColor,
   mono = false,
 }: {
   label: string
   value: React.ReactNode
   detail?: React.ReactNode
+  accentColor?: string
   mono?: boolean
 }) {
   return (
-    <Card className="flex h-[104px] flex-col justify-center gap-1 p-4">
-      <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+    <Card className="interactive-surface flex h-[104px] flex-col justify-center gap-1 p-4">
+      <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+        {accentColor && (
+          <span
+            className="size-1.5 rounded-full"
+            style={{ backgroundColor: accentColor }}
+            aria-hidden="true"
+          />
+        )}
         {label}
       </span>
-      <span className={mono ? 'font-mono text-2xl font-bold tracking-tight' : 'truncate text-base font-medium'}>
+      <span
+        className={
+          mono
+            ? 'tnum font-mono text-2xl font-bold tracking-tight'
+            : 'truncate text-base font-medium'
+        }
+      >
         {value}
       </span>
       {detail && <span className="truncate text-xs text-muted-foreground">{detail}</span>}
@@ -28,15 +43,20 @@ function StatCard({
   )
 }
 
-/** The four server-computed headline figures. Null figures render as em-dash. */
+/**
+ * Three headline figures: the next quota reset, the model closest to empty,
+ * and the healthiest account. Null figures render as em-dash. (Total poll
+ * count moved out of the headline row — it's operational trivia, not a
+ * decision-making number.)
+ */
 export function StatCards({ masked }: { masked: boolean }) {
   const { data, isPending } = useStats()
   const display = (email: string) => (masked ? maskEmail(email) : email)
 
   if (isPending) {
     return (
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {Array.from({ length: 4 }, (_, i) => (
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {Array.from({ length: 3 }, (_, i) => (
           <Skeleton key={i} className="h-[104px]" />
         ))}
       </section>
@@ -46,12 +66,14 @@ export function StatCards({ masked }: { masked: boolean }) {
   const depleted = data?.most_depleted_model
   const remaining = data?.account_most_remaining
   const reset = data?.next_reset
+  const depletedProvider = depleted ? classifyProvider(depleted.label) : null
 
   return (
-    <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <StatCard
-        label="Polls this week"
-        value={data ? data.total_polls_this_week.toLocaleString() : '—'}
+        label="Next reset"
+        value={reset ? until(reset.reset_time) : '—'}
+        detail={reset ? `${reset.label} · ${display(reset.email)}` : 'no upcoming reset'}
         mono
       />
       <StatCard
@@ -59,22 +81,15 @@ export function StatCards({ masked }: { masked: boolean }) {
         value={depleted ? depleted.label : '—'}
         detail={
           depleted
-            ? `${classifyProvider(depleted.label) ?? 'Unknown'} · ${pct(
-                depleted.remaining_fraction,
-              )} left · ${display(depleted.email)}`
+            ? `${pct(depleted.remaining_fraction)} left · ${display(depleted.email)}`
             : 'no data'
         }
+        accentColor={depletedProvider ? PROVIDER_COLORS[depletedProvider] : undefined}
       />
       <StatCard
-        label="Most remaining account"
+        label="Healthiest account"
         value={remaining ? display(remaining.email) : '—'}
         detail={remaining ? `${pct(remaining.remaining_fraction)} average remaining` : 'no data'}
-      />
-      <StatCard
-        label="Next reset"
-        value={reset ? until(reset.reset_time) : '—'}
-        detail={reset ? `${reset.label} · ${display(reset.email)}` : 'no data'}
-        mono
       />
     </section>
   )

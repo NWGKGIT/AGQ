@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title description">
+  <title id="title">AGQ app mark</title>
+  <desc id="description">A token floating within a blue and violet orbital gauge</desc>
+  <defs>
+    <linearGradient id="background" x1="96" y1="64" x2="928" y2="960" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#172554"/>
+      <stop offset="0.52" stop-color="#312e81"/>
+      <stop offset="1" stop-color="#581c87"/>
+    </linearGradient>
+    <linearGradient id="orbit" x1="202" y1="270" x2="841" y2="758" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#67e8f9"/>
+      <stop offset="0.48" stop-color="#60a5fa"/>
+      <stop offset="1" stop-color="#c084fc"/>
+    </linearGradient>
+    <linearGradient id="token" x1="390" y1="374" x2="637" y2="652" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#c4b5fd"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="24" stdDeviation="26" flood-color="#020617" flood-opacity="0.48"/>
+    </filter>
+  </defs>
+
+  <rect x="32" y="32" width="960" height="960" rx="224" fill="url(#background)"/>
+  <circle cx="512" cy="512" r="330" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="20"/>
+
+  <g fill="none" stroke="url(#orbit)" stroke-linecap="round">
+    <path d="M218 644C147 515 226 351 388 263C550 175 744 197 821 326C898 455 821 619 659 708C497 797 293 773 218 644Z" stroke-width="44"/>
+    <path d="M268 307C383 214 571 215 712 304" stroke-width="22" stroke-opacity="0.78"/>
+  </g>
+
+  <g stroke="#e0f2fe" stroke-width="18" stroke-linecap="round" opacity="0.92">
+    <path d="M302 384L272 352"/>
+    <path d="M377 317L360 277"/>
+    <path d="M465 280L461 235"/>
+    <path d="M558 277L568 233"/>
+    <path d="M646 310L670 270"/>
+    <path d="M721 371L755 340"/>
+  </g>
+
+  <g filter="url(#shadow)">
+    <circle cx="512" cy="512" r="178" fill="#111827" stroke="#ffffff" stroke-opacity="0.24" stroke-width="14"/>
+    <circle cx="512" cy="512" r="139" fill="url(#token)"/>
+    <path d="M512 403L614 579H410L512 403Z" fill="#4338ca"/>
+    <circle cx="512" cy="522" r="45" fill="#ddd6fe"/>
+    <circle cx="512" cy="522" r="23" fill="#312e81"/>
+  </g>
+
+  <circle cx="815" cy="326" r="37" fill="#e0f2fe" stroke="#312e81" stroke-width="12"/>
+</svg>

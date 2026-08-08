@@ -1,11 +1,29 @@
+import { ChevronRight } from 'lucide-react'
+
 import { QuotaBar } from '@/components/quota-bar'
+import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { ago, maskEmail, pct, until } from '@/lib/format'
-import { groupByProvider } from '@/lib/providers'
+import { deriveHealth, HEALTH_LABELS, type HealthStatus } from '@/lib/health'
+import { groupByProvider, PROVIDER_COLORS } from '@/lib/providers'
 import { cn } from '@/lib/utils'
 import type { apiclient } from '../../../wailsjs/go/models'
 
 const MODELS_SHOWN_PER_PROVIDER = 3
+
+const HEALTH_DOT: Record<HealthStatus, string> = {
+  low: 'bg-destructive',
+  warning: 'bg-warning',
+  good: 'bg-success',
+  unknown: 'bg-muted-foreground/40',
+}
+
+const HEALTH_BAR: Record<HealthStatus, string> = {
+  low: 'bg-destructive',
+  warning: 'bg-warning',
+  good: 'bg-success',
+  unknown: 'bg-muted-foreground/25',
+}
 
 function soonestReset(models: apiclient.ModelQuota[]): string | undefined {
   const times = models
@@ -17,7 +35,8 @@ function soonestReset(models: apiclient.ModelQuota[]): string | undefined {
 
 /**
  * One account with its per-provider model quotas. Clicking opens the detail
- * sheet. Fully exhausted accounts are dimmed like the design samples.
+ * sheet. Health is signalled by a status dot, a badge, and the bottom quota
+ * bar — never by color alone, and never by a painted-on side border.
  */
 export function AccountCard({
   account,
@@ -32,8 +51,7 @@ export function AccountCard({
 }) {
   const snapshot = account.latest_snapshot
   const models = snapshot?.models ?? []
-  const exhausted =
-    models.length > 0 && models.every((m) => m.is_exhausted || m.remaining_fraction === 0)
+  const health = deriveHealth(models)
   const groups = groupByProvider(models, (m) => m.label)
   const nextReset = soonestReset(models)
 
@@ -43,24 +61,53 @@ export function AccountCard({
       tabIndex={0}
       onClick={() => onSelect(account.email)}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') onSelect(account.email)
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onSelect(account.email)
+        }
       }}
-      className={cn(
-        'flex cursor-pointer flex-col gap-3 p-4 transition-colors hover:border-ring/60',
-        exhausted && 'opacity-50',
-      )}
+      className="interactive-surface group flex cursor-pointer flex-col gap-3 overflow-hidden p-4 pb-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      aria-label={`${masked ? maskEmail(account.email) : account.email}, ${HEALTH_LABELS[health.status]} quota health, ${live ? 'live' : 'idle'}`}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="truncate font-mono text-sm">
-          {masked ? maskEmail(account.email) : account.email}
+        <span className="flex min-w-0 items-center gap-2">
+          <span
+            className={cn('size-2 shrink-0 rounded-full', HEALTH_DOT[health.status])}
+            aria-hidden="true"
+          />
+          <span className="truncate font-mono text-sm">
+            {masked ? maskEmail(account.email) : account.email}
+          </span>
         </span>
-        <span
-          className={cn(
-            'size-2 shrink-0 rounded-full',
-            live ? 'bg-success' : exhausted ? 'bg-destructive/60' : 'bg-muted-foreground/40',
-          )}
-          title={live ? 'live' : exhausted ? 'exhausted' : 'idle'}
-        />
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Badge
+            variant={
+              health.status === 'low'
+                ? 'destructive'
+                : health.status === 'warning'
+                  ? 'warning'
+                  : health.status === 'good'
+                    ? 'success'
+                    : 'secondary'
+            }
+          >
+            {HEALTH_LABELS[health.status]}
+          </Badge>
+          <Badge variant="outline" className="font-normal text-muted-foreground">
+            <span
+              className={cn(
+                'size-1.5 rounded-full',
+                live ? 'bg-sky-500' : 'bg-muted-foreground/50',
+              )}
+              aria-hidden="true"
+            />
+            {live ? 'Live' : 'Idle'}
+          </Badge>
+          <ChevronRight
+            className="size-3.5 text-muted-foreground/0 transition-colors duration-150 group-hover:text-muted-foreground"
+            aria-hidden="true"
+          />
+        </div>
       </div>
 
       <div className="flex justify-between text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -79,7 +126,12 @@ export function AccountCard({
             const hidden = items.length - shown.length
             return (
               <div key={provider}>
-                <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                <span className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  <span
+                    className="size-1.5 rounded-full"
+                    style={{ backgroundColor: PROVIDER_COLORS[provider] }}
+                    aria-hidden="true"
+                  />
                   {provider}
                 </span>
                 <div className="flex flex-col gap-1.5">
@@ -92,10 +144,10 @@ export function AccountCard({
                         {m.label}
                       </span>
                       <QuotaBar fraction={m.remaining_fraction} className="h-[2px] flex-1" />
-                      <span className="w-9 text-right font-mono">
+                      <span className="tnum w-9 text-right font-mono">
                         {pct(m.remaining_fraction)}
                       </span>
-                      <span className="w-12 text-right font-mono text-muted-foreground">
+                      <span className="tnum w-12 text-right font-mono text-muted-foreground">
                         {m.reset_time ? until(m.reset_time) : '–'}
                       </span>
                     </div>
@@ -109,6 +161,16 @@ export function AccountCard({
           })}
         </div>
       )}
+
+      {/* Slim health strip along the bottom edge: overall remaining quota. */}
+      <div className="-mx-4 mt-auto h-[3px] bg-muted" aria-hidden="true">
+        <div
+          className={cn('h-full transition-all duration-300', HEALTH_BAR[health.status])}
+          style={{
+            width: `${Math.round((health.lowestRemainingFraction ?? 0) * 100)}%`,
+          }}
+        />
+      </div>
     </Card>
   )
 }

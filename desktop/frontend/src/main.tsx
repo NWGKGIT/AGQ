@@ -9,8 +9,7 @@ import './index.css'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // The data source is a local daemon: failures mean it is down, not
-      // flaky, so surface them immediately instead of retrying.
+      // The monitor is local, so surface connection failures immediately.
       retry: false,
       refetchOnWindowFocus: true,
     },

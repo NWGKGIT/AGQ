@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import {
+  GetAccountModels,
   GetAccounts,
   GetBreakdown,
   GetConfig,
@@ -8,7 +9,6 @@ import {
   GetHealth,
   GetModelsLatest,
   GetSnapshots,
-  GetSparklines,
   GetStats,
   GetStatus,
   GetTimeline,
@@ -17,13 +17,13 @@ import {
 } from '../../wailsjs/go/main/App'
 import type { config } from '../../wailsjs/go/models'
 
-// The daemon polls language servers every 60s; refreshing at half that keeps
+// The monitor polls language servers every 60s; refreshing at half that keeps
 // the UI at most one poll cycle behind without hammering the loopback API.
 const REFETCH_MS = 30_000
-// Live daemon state (ACTIVE/IDLE) is cheap and changes fast; poll it quicker.
+// Live monitor state (ACTIVE/IDLE) is cheap and changes fast; poll it quicker.
 const STATUS_REFETCH_MS = 10_000
 
-/** True when the error came from a failed connection, i.e. daemon not running. */
+/** True when the app cannot reach its local monitoring runtime. */
 export function isDaemonUnreachable(error: unknown): boolean {
   return String(error).includes('daemon unreachable')
 }
@@ -83,10 +83,10 @@ export function useSnapshots(email: string, limit = 10) {
   })
 }
 
-export function useSparklines(email: string) {
+export function useAccountModels(email: string) {
   return useQuery({
-    queryKey: ['sparklines', email],
-    queryFn: () => GetSparklines(email),
+    queryKey: ['accountModels', email],
+    queryFn: () => GetAccountModels(email),
     enabled: email !== '',
     refetchInterval: REFETCH_MS,
     retry: false,
@@ -144,7 +144,7 @@ export function useSetAppConfig() {
     mutationFn: (cfg: config.Config) => SetConfig(cfg),
     onSuccess: (saved) => {
       queryClient.setQueryData(['config'], saved)
-      // The daemon port may have changed; refetch everything against it.
+      // The local API settings may have changed; refresh all monitor data.
       queryClient.invalidateQueries()
     },
   })

@@ -1,6 +1,7 @@
-// Package apiclient is a typed HTTP client for the AGQ daemon's local JSON
-// API. The Wails app binds thin wrappers around it so the React frontend
-// never issues HTTP requests itself.
+// Package apiclient is a typed client for the AGQ monitor's JSON API. It
+// dispatches to the embedded monitor's handler in-process; the Wails app binds
+// thin wrappers around it so the React frontend never issues HTTP requests
+// itself.
 package apiclient
 
 import (
@@ -9,27 +10,27 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strconv"
-	"time"
 )
 
-// ErrDaemonUnreachable wraps connection-level failures so the frontend can
-// distinguish "daemon not running" from an API error.
+// ErrDaemonUnreachable wraps dispatch-level failures so the frontend can
+// distinguish "monitor not running" from an API error.
 var ErrDaemonUnreachable = errors.New("daemon unreachable")
 
-// Client talks to one daemon instance on loopback.
+// HandlerSource yields the current API handler, or nil while the monitor is
+// stopped. Fetching per-request keeps the client valid across restarts.
+type HandlerSource func() http.Handler
+
+// Client dispatches typed requests to one monitor API handler.
 type Client struct {
-	baseURL string
-	http    *http.Client
+	handler HandlerSource
 }
 
-// New creates a client for the daemon listening on the given port.
-func New(port int) *Client {
-	return &Client{
-		baseURL: fmt.Sprintf("http://127.0.0.1:%d", port),
-		http:    &http.Client{Timeout: 5 * time.Second},
-	}
+// New creates a client that resolves the monitor handler through source.
+func New(source HandlerSource) *Client {
+	return &Client{handler: source}
 }
 
 // apiError is the daemon's error envelope.
@@ -39,10 +40,14 @@ type apiError struct {
 }
 
 func (c *Client) get(path string, out any) error {
-	resp, err := c.http.Get(c.baseURL + path)
-	if err != nil {
-		return fmt.Errorf("%w: %v", ErrDaemonUnreachable, err)
+	handler := c.handler()
+	if handler == nil {
+		return fmt.Errorf("%w: monitor runtime is not running", ErrDaemonUnreachable)
 	}
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	resp := rec.Result()
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
@@ -136,6 +141,13 @@ func (c *Client) Timeline(email string) (TimelineResponse, error) {
 func (c *Client) ModelsLatest() (ModelsLatestResponse, error) {
 	var out ModelsLatestResponse
 	err := c.get("/api/models/latest", &out)
+	return out, err
+}
+
+// AccountModels calls GET /api/accounts/{email}/models/current.
+func (c *Client) AccountModels(email string) (AccountModelsResponse, error) {
+	var out AccountModelsResponse
+	err := c.get("/api/accounts/"+url.PathEscape(email)+"/models/current", &out)
 	return out, err
 }
 

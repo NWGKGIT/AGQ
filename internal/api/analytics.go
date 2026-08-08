@@ -107,6 +107,7 @@ type breakdownRow struct {
 	StartingFraction *float64 `json:"starting_fraction,omitempty"`
 	Consumed         *float64 `json:"consumed,omitempty"`
 	ResetTime        *string  `json:"reset_time,omitempty"`
+	AssumedRefilled  bool     `json:"assumed_refilled,omitempty"`
 }
 
 func (s *Server) analyticsBreakdownHandler(w http.ResponseWriter, r *http.Request) {
@@ -116,6 +117,7 @@ func (s *Server) analyticsBreakdownHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	now := s.now()
 	out := make([]breakdownRow, 0, len(rows))
 	for _, row := range rows {
 		br := breakdownRow{
@@ -129,6 +131,17 @@ func (s *Server) analyticsBreakdownHandler(w http.ResponseWriter, r *http.Reques
 		if row.ResetTime != nil {
 			reset := row.ResetTime.UTC().Format(time.RFC3339)
 			br.ResetTime = &reset
+
+			// The cycle this row was captured in has ended: the pool refilled
+			// server-side, so consumption figures from it no longer apply.
+			// Serve an assumed-full row rather than stale depleted numbers.
+			if row.ResetTime.Before(now) {
+				full := 1.0
+				br.CurrentFraction = &full
+				br.StartingFraction = nil
+				br.Consumed = nil
+				br.AssumedRefilled = true
+			}
 		}
 		out = append(out, br)
 	}

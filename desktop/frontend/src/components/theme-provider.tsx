@@ -11,6 +11,7 @@ type ThemeProviderState = {
 const ThemeProviderContext = createContext<ThemeProviderState | undefined>(undefined)
 
 const STORAGE_KEY = 'agq-theme'
+const LEGACY_STORAGE_KEY = 'antigravity-token-monitor-theme'
 
 function systemTheme(): 'dark' | 'light' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
@@ -24,7 +25,10 @@ export function ThemeProvider({
   defaultTheme?: Theme
 }) {
   const [theme, setThemeState] = useState<Theme>(
-    () => (localStorage.getItem(STORAGE_KEY) as Theme) || defaultTheme,
+    () =>
+      (localStorage.getItem(STORAGE_KEY) as Theme) ||
+      (localStorage.getItem(LEGACY_STORAGE_KEY) as Theme) ||
+      defaultTheme,
   )
   const resolvedTheme = theme === 'system' ? systemTheme() : theme
 
@@ -44,6 +48,7 @@ export function ThemeProvider({
 
   const setTheme = (next: Theme) => {
     localStorage.setItem(STORAGE_KEY, next)
+    localStorage.removeItem(LEGACY_STORAGE_KEY)
     setThemeState(next)
   }
 

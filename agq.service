@@ -1,5 +1,5 @@
 [Unit]
-Description=AGQ Daemon — Antigravity Quota Monitor
+Description=AGQ — headless quota monitor daemon
 After=network.target graphical-session.target
 
 [Service]

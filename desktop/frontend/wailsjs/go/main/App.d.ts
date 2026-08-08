@@ -3,6 +3,8 @@
 import {apiclient} from '../models';
 import {config} from '../models';
 
+export function GetAccountModels(arg1:string):Promise<apiclient.AccountModelsResponse>;
+
 export function GetAccounts():Promise<apiclient.AccountsResponse>;
 
 export function GetBreakdown():Promise<apiclient.BreakdownResponse>;
