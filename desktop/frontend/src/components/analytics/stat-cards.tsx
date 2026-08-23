@@ -43,12 +43,7 @@ function StatCard({
   )
 }
 
-/**
- * Three headline figures: the next quota reset, the model closest to empty,
- * and the healthiest account. Null figures render as em-dash. (Total poll
- * count moved out of the headline row — it's operational trivia, not a
- * decision-making number.)
- */
+/** Show the next reset, lowest quota, and healthiest account. */
 export function StatCards({ masked }: { masked: boolean }) {
   const { data, isPending } = useStats()
   const display = (email: string) => (masked ? maskEmail(email) : email)
@@ -72,13 +67,13 @@ export function StatCards({ masked }: { masked: boolean }) {
     <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <StatCard
         label="Next reset"
-        value={reset ? until(reset.reset_time) : '—'}
+        value={reset ? until(reset.reset_time) : '-'}
         detail={reset ? `${reset.label} · ${display(reset.email)}` : 'no upcoming reset'}
         mono
       />
       <StatCard
         label="Most depleted model"
-        value={depleted ? depleted.label : '—'}
+        value={depleted ? depleted.label : '-'}
         detail={
           depleted
             ? `${pct(depleted.remaining_fraction)} left · ${display(depleted.email)}`
@@ -88,7 +83,7 @@ export function StatCards({ masked }: { masked: boolean }) {
       />
       <StatCard
         label="Healthiest account"
-        value={remaining ? display(remaining.email) : '—'}
+        value={remaining ? display(remaining.email) : '-'}
         detail={remaining ? `${pct(remaining.remaining_fraction)} average remaining` : 'no data'}
       />
     </section>

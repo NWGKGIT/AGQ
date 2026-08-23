@@ -76,7 +76,7 @@ listener always on. The systemd user unit (`agq.service`) runs it on login
 and appends JSON logs to `~/.agq/agq.log`.
 
 Both shells share `~/.agq/agq.db`. SQLite runs in WAL mode so a dashboard can
-read while a daemon writes — but run only one writer at a time (don't run the
+read while a daemon writes - but run only one writer at a time (don't run the
 desktop app and the daemon simultaneously against the same database).
 
 ## Lifecycle

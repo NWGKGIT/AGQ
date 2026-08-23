@@ -1,5 +1,5 @@
 [Unit]
-Description=AGQ — headless quota monitor daemon
+Description=AGQ - headless quota monitor daemon
 After=network.target graphical-session.target
 
 [Service]

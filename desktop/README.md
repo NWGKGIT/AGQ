@@ -1,45 +1,25 @@
 # AGQ Desktop
 
-Wails + React desktop dashboard for [AGQ](../README.md), the local quota monitor for Antigravity.
-The desktop process starts the monitoring runtime itself and the React frontend
-uses typed Wails bindings. Existing Linux users can continue to run the legacy
-headless daemon on `localhost:${AGQ_PORT:-7432}` during migration.
-
-## Features
-
-- **Overview** — provider aggregate strip (Gemini / Anthropic / OpenAI),
-  live/idle daemon status with poll cadence, account cards with per-model
-  quota bars, and a per-account detail sheet: per-model colored quotas,
-  inferred login history, and recent snapshots.
-- **Analytics** — headline stats, remaining-quota-over-time chart (7d/30d,
-  avg/min), and a sortable per-account consumption breakdown.
-- **Settings** — daemon port with connection test, light/dark/system theme,
-  and email masking for screenshots (also togglable from the sidebar).
-
-Settings and quota history currently remain in the compatible `~/.agq` data
-directory; theme preference persists locally in the webview.
+The desktop application is a Wails v2 shell around the AGQ monitoring runtime. It embeds the React frontend and talks to the monitor in-process, so the headless daemon is not required.
 
 ## Stack
 
-- [Wails v2](https://wails.io) shell (Go backend, native webview window)
-- React 19 + TypeScript + Vite
-- Tailwind CSS v4 + shadcn/ui-style components
-- Dark/light theme, persisted locally
+- Go and Wails v2.13.0
+- React 19, TypeScript, and Vite
+- Tailwind CSS v4 and Radix UI primitives
+- TanStack Query and Recharts
 
 ## Development
 
+From the repository root:
+
 ```sh
-wails dev -tags webkit2_41     # hot reload
-wails build -tags webkit2_41   # production binary at build/bin/AGQ
+npm ci --prefix desktop/frontend
+make desktop-dev
+make desktop-test
+make desktop-build
 ```
 
-Or from the repository root: `make desktop-dev` / `make desktop-build`.
+Linux builds use the `webkit2_41` tag for WebKitGTK 4.1. Generated Wails bindings live in `frontend/wailsjs/` and should not be edited manually.
 
-The `webkit2_41` tag targets webkit2gtk-4.1, which current Linux distros ship.
-
-## Layout
-
-- `main.go`, `app.go` — Wails entry point and bound `App` struct
-- `frontend/src/pages/` — one file per sidebar page
-- `frontend/src/components/ui/` — shadcn-style primitives
-- `frontend/wailsjs/` — generated bindings (do not edit)
+Settings and quota history are stored under `~/.agq`.

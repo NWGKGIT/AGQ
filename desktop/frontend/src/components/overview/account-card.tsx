@@ -33,11 +33,7 @@ function soonestReset(models: apiclient.ModelQuota[]): string | undefined {
   return times[0];
 }
 
-/**
- * One account with its per-provider model quotas. Clicking opens the detail
- * sheet. Health is signalled by a status dot, a badge, and the bottom quota
- * bar — never by color alone, and never by a painted-on side border.
- */
+/** Account summary with provider quotas and health state. */
 export function AccountCard({
   account,
   live,
@@ -192,7 +188,6 @@ export function AccountCard({
         </div>
       )}
 
-      {/* Slim health strip along the bottom edge: overall remaining quota. */}
       <div className="-mx-4 mt-auto h-[3px] bg-muted" aria-hidden="true">
         <div
           className={cn(

@@ -7,9 +7,9 @@ AGQ's frontend is a React SPA (single-page app) bundled with the Wails desktop s
 **Theme:** Dark mode by default, light mode and system preference available. CSS variables control all colors and spacing.
 
 **Chart colors** (CSS variables):
-- `--chart-gemini` — Blue-purple (oklch 0.623 0.19 259.8 dark, 0.678 0.16 light)
-- `--chart-anthropic` — Orange (oklch 0.705 0.15 40.24 dark, 0.745 0.14 light)
-- `--chart-openai` — Cyan (oklch 0.696 0.14 165.46 dark, 0.741 0.13 light)
+- `--chart-gemini` - Blue-purple (oklch 0.623 0.19 259.8 dark, 0.678 0.16 light)
+- `--chart-anthropic` - Orange (oklch 0.705 0.15 40.24 dark, 0.745 0.14 light)
+- `--chart-openai` - Cyan (oklch 0.696 0.14 165.46 dark, 0.741 0.13 light)
 
 **Component library:** shadcn/ui (Radix UI primitives + Tailwind CSS). Custom UI lives in `src/components/ui/`.
 
@@ -18,16 +18,16 @@ AGQ's frontend is a React SPA (single-page app) bundled with the Wails desktop s
 ### Overview Page (`src/pages/overview.tsx`)
 
 Landing page showing:
-- **Status Header** — daemon state, active account, last poll time, next reset
-- **Provider Strip** — per-provider aggregate: average remaining quota, model count, account count
-- **Account Cards** — one card per account with latest model breakdown and quotas
+- **Status Header** - daemon state, active account, last poll time, next reset
+- **Provider Strip** - per-provider aggregate: average remaining quota, model count, account count
+- **Account Cards** - one card per account with latest model breakdown and quotas
 
 ### Analytics Page (`src/pages/analytics.tsx`)
 
 Data insights:
-- **Stat Cards** — headline metrics (next reset, most depleted model, healthiest account)
-- **Usage Chart** — per-day remaining quota trend (7d/30d, avg/min aggregation)
-- **Breakdown Table** — consumption per account/model, sortable by consumed/model/provider
+- **Stat Cards** - headline metrics (next reset, most depleted model, healthiest account)
+- **Usage Chart** - per-day remaining quota trend (7d/30d, avg/min aggregation)
+- **Breakdown Table** - consumption per account/model, sortable by consumed/model/provider
 
 ### Settings Page (`src/pages/settings.tsx`)
 
@@ -131,16 +131,16 @@ const chartData = data.days.map(day => ({
 
 ## Error Handling
 
-- **Monitor unreachable** — displays offline message, shows last known state if available
-- **Query errors** — retry logic built into React Query; if retries exhaust, show error toast
-- **Invalid data** — TypeScript types catch schema mismatches at build time
+- **Monitor unreachable** - displays offline message, shows last known state if available
+- **Query errors** - retry logic built into React Query; if retries exhaust, show error toast
+- **Invalid data** - TypeScript types catch schema mismatches at build time
 
 ## Performance
 
-- **Code splitting** — each page is lazy-loaded via React Router
-- **Image optimization** — no images (UI is text + charts)
-- **Bundle size** — Vite build produces ~180 KB gzipped (React, Recharts, shadcn)
-- **Time to interactive** — ~500 ms on modern machines (Wails launches with precompiled JS)
+- **Code splitting** - each page is lazy-loaded via React Router
+- **Image optimization** - no images (UI is text + charts)
+- **Bundle size** - Vite build produces ~180 KB gzipped (React, Recharts, shadcn)
+- **Time to interactive** - ~500 ms on modern machines (Wails launches with precompiled JS)
 
 ## Accessibility
 

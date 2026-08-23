@@ -8,7 +8,7 @@ import (
 
 // applyAssumedRefill rewrites served model quotas whose reset time has already
 // passed. The provider refills the pool server-side at the reset instant, so a
-// stored fraction from before the reset no longer describes reality — showing
+// stored fraction from before the reset no longer describes reality - showing
 // it would surface a stale, depleted number indefinitely while no fresh poll
 // is possible (account logged out, monitor down). Stored rows are never
 // mutated; only the response is.

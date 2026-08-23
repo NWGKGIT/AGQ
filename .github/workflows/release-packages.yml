@@ -12,10 +12,55 @@ on:
       - "v[0-9]+.[0-9]+.[0-9]+"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
+  windows-portable:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: desktop/go.mod
+          cache-dependency-path: |
+            go.sum
+            desktop/go.sum
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: desktop/frontend/package-lock.json
+
+      - name: Build portable Windows package
+        shell: pwsh
+        env:
+          DISPATCH_VERSION: ${{ inputs.version }}
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
+          npm ci --prefix desktop/frontend
+          npm run build --prefix desktop/frontend
+          Push-Location desktop
+          try {
+            wails build -clean -trimpath -platform windows/amd64 -webview2 browser -o AGQ.exe
+          } finally {
+            Pop-Location
+          }
+          $semanticVersion = if ($env:DISPATCH_VERSION) { $env:DISPATCH_VERSION } else { $env:GITHUB_REF_NAME.TrimStart('v') }
+          if ($semanticVersion -notmatch '^\d+\.\d+\.\d+$') { throw "Release version must use major.minor.patch: $semanticVersion" }
+          New-Item -ItemType Directory -Path release -Force | Out-Null
+          Copy-Item desktop/build/bin/AGQ.exe release/AGQ.exe
+          Compress-Archive -Path release/AGQ.exe -DestinationPath "AGQ-$semanticVersion-windows-x64.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AGQ-windows-portable
+          path: AGQ-*-windows-x64.zip
+          if-no-files-found: error
+
   windows-msix:
+    if: ${{ vars.WINDOWS_PACKAGE_IDENTITY_NAME != '' && vars.WINDOWS_PACKAGE_PUBLISHER != '' && vars.WINDOWS_PUBLISHER_DISPLAY_NAME != '' }}
     runs-on: windows-2025
     env:
       WINDOWS_PACKAGE_IDENTITY_NAME: ${{ vars.WINDOWS_PACKAGE_IDENTITY_NAME }}
@@ -72,6 +117,7 @@ jobs:
             desktop/build/msix/*.sha256
           if-no-files-found: error
 
+
   linux-appimage:
     runs-on: ubuntu-24.04
     steps:
@@ -116,3 +162,23 @@ jobs:
             desktop/build/appimage/*.AppImage
             desktop/build/appimage/*.sha256
           if-no-files-found: error
+
+  release:
+    needs: [windows-portable, windows-msix, linux-appimage]
+    if: ${{ always() && needs.windows-portable.result == 'success' && needs.linux-appimage.result == 'success' && (needs.windows-msix.result == 'success' || needs.windows-msix.result == 'skipped') }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          assets=$(find release-assets -type f -print)
+          gh release create "$GITHUB_REF_NAME" $assets \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "AGQ $version" \
+            --generate-notes

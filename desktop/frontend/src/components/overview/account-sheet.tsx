@@ -85,10 +85,7 @@ function ModelRow({ model }: { model: apiclient.ModelAggregate }) {
   )
 }
 
-/**
- * Per-model remaining quotas grouped by provider. Fed by /models/current, so
- * every row carries the newest non-null value — never a blank dash.
- */
+/** Current per-model quotas grouped by provider. */
 function ModelQuotas({ email }: { email: string }) {
   const { data, isPending } = useAccountModels(email)
   if (isPending) return <Skeleton className="h-40 w-full" />
@@ -97,7 +94,7 @@ function ModelQuotas({ email }: { email: string }) {
   if (groups.length === 0) {
     return (
       <p className="text-xs text-muted-foreground">
-        No quota data yet — model percentages appear after the next poll.
+        No quota data yet. Model percentages appear after the next poll.
       </p>
     )
   }

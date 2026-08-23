@@ -4,11 +4,11 @@ AGQ discovers local Antigravity language server processes by scanning the operat
 
 ## Discovery Pipeline
 
-1. **Enumerate processes** — scan all running processes for Antigravity language servers
-2. **Validate identity** — check executable name and command-line flags
-3. **Extract configuration** — parse CSRF token and port declarations from process args
-4. **Discover loopback ports** — find listening ports from OS kernel or declared args
-5. **Probe for active port** — test each port with a `GetUserStatus` request, return first success
+1. **Enumerate processes** - scan all running processes for Antigravity language servers
+2. **Validate identity** - check executable name and command-line flags
+3. **Extract configuration** - parse CSRF token and port declarations from process args
+4. **Discover loopback ports** - find listening ports from OS kernel or declared args
+5. **Probe for active port** - test each port with a `GetUserStatus` request, return first success
 
 ## Process Identification
 
@@ -49,7 +49,7 @@ Calls `GetExtendedTcpTable()` Windows API with `TCP_TABLE_OWNER_PID_ALL` filter 
 
 1. Collects ports from declared args (`--https_server_port`, `--lsp_port`, `--extension_server_port`)
 2. Collects ports from OS socket table
-3. Deduplicates and validates (1–65535)
+3. Deduplicates and validates (1-65535)
 4. If OS table is empty, falls back to declared ports
 5. Returns sorted list for probing
 

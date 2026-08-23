@@ -55,7 +55,7 @@ The `ResetTime` field in each `ModelQuota` row indicates when the current cycle 
 - Flag `assumed_refilled: true` is set in the response
 - Consumption figures are cleared (no data from past cycles)
 
-This ensures that stale data never appears "stuck" on the dashboard — a reset cycle always appears complete.
+This ensures that stale data never appears "stuck" on the dashboard - a reset cycle always appears complete.
 
 **Implementation:** The `refill.go` handler applies this logic to served model snapshots, account current quotas, and aggregate responses. The database is never rewritten; only the JSON response is transformed at serve time.
 
@@ -140,26 +140,26 @@ JSON responses (frontend / external tools)
 Three tables:
 
 **accounts**
-- `id` — primary key
-- `email` — unique account email
-- `plan_name` — user tier name
-- `first_seen`, `last_seen` — timestamps
+- `id` - primary key
+- `email` - unique account email
+- `plan_name` - user tier name
+- `first_seen`, `last_seen` - timestamps
 
 **snapshots**
-- `id` — primary key
-- `account_id` — foreign key to accounts
-- `captured_at` — poll timestamp (indexed with account_id)
-- `prompt_credits_available`, `prompt_credits_monthly` — credit balances
-- `flow_credits_available`, `flow_credits_monthly` — credit balances
-- `raw_json` — original response (not used)
+- `id` - primary key
+- `account_id` - foreign key to accounts
+- `captured_at` - poll timestamp (indexed with account_id)
+- `prompt_credits_available`, `prompt_credits_monthly` - credit balances
+- `flow_credits_available`, `flow_credits_monthly` - credit balances
+- `raw_json` - original response (not used)
 
 **model_quotas**
-- `id` — primary key
-- `snapshot_id` — foreign key to snapshots
-- `label`, `model_id` — model identifier
-- `remaining_fraction`, `remaining_pct` — quota level
-- `is_exhausted` — boolean
-- `reset_time`, `pool_reset_time` — reset timestamps
-- `time_until_reset_ms` — computed at insert time
+- `id` - primary key
+- `snapshot_id` - foreign key to snapshots
+- `label`, `model_id` - model identifier
+- `remaining_fraction`, `remaining_pct` - quota level
+- `is_exhausted` - boolean
+- `reset_time`, `pool_reset_time` - reset timestamps
+- `time_until_reset_ms` - computed at insert time
 
 All writes are transactional; all reads use indices on (account_id, captured_at) and (snapshot_id) for fast access.

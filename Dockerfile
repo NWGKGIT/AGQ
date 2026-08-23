@@ -1,6 +1,6 @@
 # Containerized build and test environment for the AGQ headless daemon.
 #
-# The desktop app cannot be containerized usefully — it needs a display
+# The desktop app cannot be containerized usefully - it needs a display
 # server, GTK/WebKit (Linux) or WebView2 (Windows), and reads /proc of the
 # host to discover language servers. The daemon shares all of its logic
 # through the same Go packages, so container CI of the daemon covers the

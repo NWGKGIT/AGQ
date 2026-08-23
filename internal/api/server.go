@@ -386,7 +386,7 @@ func (s *Server) modelsLatestHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // accountModelsCurrentHandler serves each model's newest known quota value for
-// one account. Unlike the latest snapshot — which can carry null fractions —
+// one account. Unlike the latest snapshot - which can carry null fractions -
 // every row here has a value: the newest non-null capture per model within the
 // lookback window, with assumed-refill applied for elapsed resets.
 func (s *Server) accountModelsCurrentHandler(w http.ResponseWriter, r *http.Request) {

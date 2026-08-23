@@ -134,7 +134,7 @@ function PrivacySection() {
       <CardContent>
         <Row
           label="Mask emails"
-          description="Shows j***@gmail.com everywhere — useful for screenshots and screen shares."
+          description="Shows j***@gmail.com everywhere - useful for screenshots and screen shares."
         >
           <Switch
             checked={cfg?.mask_emails ?? false}

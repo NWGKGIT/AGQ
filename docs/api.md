@@ -112,8 +112,8 @@ Latest snapshot for a specific account, with assumed-refill applied.
 Paginated snapshot history for an account, newest-first.
 
 **Query params:**
-- `limit` — result count, clamped to [1, 200], default 50
-- `before` — RFC3339 timestamp; return snapshots captured before this time, default now
+- `limit` - result count, clamped to [1, 200], default 50
+- `before` - RFC3339 timestamp; return snapshots captured before this time, default now
 
 **Response:**
 ```json
@@ -196,8 +196,8 @@ Null fractions are included so the frontend can render gaps in polling.
 Per-day remaining quota trend by provider.
 
 **Query params:**
-- `range` — `7d` or `30d`, default `7d`
-- `agg` — `avg` or `min`, default `avg`
+- `range` - `7d` or `30d`, default `7d`
+- `agg` - `avg` or `min`, default `avg`
 
 **Response:**
 ```json

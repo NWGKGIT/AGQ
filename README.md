@@ -1,40 +1,37 @@
 # AGQ
 
-**AGQ** is a local-first desktop app that monitors your model quotas for
-[Antigravity](https://antigravity.google). It discovers the Antigravity
-language server running on your machine, polls its local API for per-model
-quota levels, and turns the history into a dashboard: remaining percentages
-per model and provider, reset countdowns, consumption analytics, and inferred
-login sessions — for every account you use.
+AGQ is a local-first desktop quota monitor for [Antigravity](https://antigravity.google). It discovers the local language server, records per-model quota snapshots, and presents live status, reset times, account history, and usage analytics.
 
-Everything runs on your machine. AGQ never talks to any external service:
-it probes loopback ports only, authenticates with the language server's own
-CSRF token, and stores snapshots in a local SQLite database.
+AGQ is unofficial and local-only. It probes loopback services, uses the language server's CSRF token, and stores data in SQLite under `~/.agq`. It does not send telemetry or call a hosted AGQ service.
 
-- **Desktop app** for Linux (AppImage) and Windows (Microsoft Store, MSIX)
-- **Optional headless daemon** for Linux servers/tinkerers, exposing the same
-  data as a local JSON API
+## Screenshots
 
-## Highlights
+Add release screenshots to [`docs/screenshots/`](docs/screenshots/). The expected files are:
 
-- **Per-model quotas** — remaining percentage for every model (Gemini,
-  Anthropic, OpenAI pools), colored by provider, with reset countdowns.
-- **Multi-account** — every account the monitor has ever seen, with health
-  states, live/idle status, and a per-account detail sheet.
-- **Analytics** — remaining-quota trend per provider (7d/30d), most depleted
-  model, next reset, and a sortable per-model consumption breakdown.
-- **Smart about resets** — if a quota reset passes while you're logged out or
-  the app is off, AGQ serves the pool as refilled (flagged "assumed") instead
-  of showing a stale depleted number forever.
-- **Login timeline** — inferred login/logout sessions from snapshot gaps.
-- **Privacy switches** — email masking for screenshots; the local API is only
-  exposed on a loopback port if you opt in.
+| File | View |
+| --- | --- |
+| `overview.png` | Overview dashboard |
+| `analytics.png` | Analytics page |
+| `settings.png` | Settings page |
+
+<!-- Screenshot placeholders: add the files above when ready. -->
+
+## Features
+
+- Per-model quota percentages, provider grouping, and reset countdowns
+- Multiple-account history with live and idle state
+- Seven-day and thirty-day analytics with per-model breakdowns
+- Assumed-refill handling when a reset passes while AGQ is offline
+- Inferred login timeline from snapshot history
+- Optional email masking and opt-in loopback API exposure
+- Wails desktop app for Linux and Windows
+- Optional headless daemon for Linux servers and scripts
 
 ## Install
 
-### Linux
+Download the latest artifacts from [GitHub Releases](https://github.com/NWGKGIT/AGQ/releases).
 
-Download the latest `AGQ-x86_64.AppImage` from Releases, then:
+### Linux
 
 ```sh
 chmod +x AGQ-x86_64.AppImage
@@ -43,80 +40,48 @@ chmod +x AGQ-x86_64.AppImage
 
 ### Windows
 
-Install **AGQ** from the Microsoft Store (or sideload the `.msix` from
-Releases).
+Download the Windows x64 ZIP, extract it, and run `AGQ.exe`. MSIX packages are published when Store identity configuration is available.
 
 ## Build From Source
 
-Requirements: Go 1.26+, Node 24+, and the [Wails v2 CLI](https://wails.io).
-On Linux additionally GTK3 and webkit2gtk-4.1.
+Requirements: Go 1.26+, Node.js 24+, Wails v2.13.0, and platform webview dependencies. Linux builds require GTK3 and WebKitGTK 4.1. Windows builds require a supported Go and C compiler toolchain.
 
 ```sh
-make desktop-build    # binary at desktop/build/bin/AGQ
-make desktop-dev      # hot-reload development
-make desktop-appimage # x86_64 AppImage release artifact
+npm ci --prefix desktop/frontend
+make desktop-build
 ```
 
-Run the test suites:
+Useful targets:
 
 ```sh
-make test          # Go packages (daemon + monitor core)
-make desktop-test  # desktop Go tests + frontend tests + typecheck/build
-make docker-test   # the Go suite inside a container
+make desktop-dev       # Wails development mode
+make desktop-test      # Desktop Go tests, frontend tests, and build
+make desktop-appimage  # Linux x86_64 AppImage
+make test              # Core Go tests
+make docker-test       # Core tests in Docker
 ```
 
-If your Go build cache is not writable in a restricted environment:
+The standalone daemon is built with `make build` and listens on `localhost:${AGQ_PORT:-7432}`. Use `make install` and `make enable` to run it as a systemd user service.
 
-```sh
-GOCACHE=/tmp/agq-go-cache go test ./...
-```
+## Data and Configuration
 
-## Optional Headless Daemon (Linux)
+Runtime files live in `~/.agq`:
 
-The desktop app embeds the monitor; nothing else is required. For servers or
-scripting, a standalone daemon serves the same JSON API on
-`localhost:${AGQ_PORT:-7432}`:
+- `agq.db`: SQLite snapshot history
+- `agq.log`: daemon log
+- `desktop.json`: desktop settings
 
-```sh
-make build     # compile agq-daemon
-make install   # install binary + systemd user unit
-make enable    # start on login
-```
-
-`make status`, `make logs`, `make disable`, and `make uninstall` manage the
-service. A containerized build is also available (`make docker-build`); note
-that process discovery needs the host PID namespace (`docker run --pid=host`).
-
-## Configuration
-
-| Variable   | Default | Description                                                    |
-| ---------- | ------- | -------------------------------------------------------------- |
-| `AGQ_PORT` | `7432`  | Local HTTP API port (daemon, or desktop with "Expose API" on). |
-
-Desktop settings (theme, email masking, API exposure) live in
-`~/.agq/desktop.json` and are editable from the Settings page.
-
-## Data
-
-AGQ stores runtime data under `~/.agq`:
-
-- `agq.db` — SQLite snapshot history (WAL mode, safe for concurrent readers)
-- `agq.log` — JSON log file (headless daemon)
+`AGQ_PORT` sets the local API port. The desktop app only exposes that API when enabled in Settings.
 
 ## Documentation
 
-Extensive technical documentation lives in [`docs/`](docs/):
+- [Architecture](docs/architecture.md)
+- [Detection](docs/detection.md)
+- [Data and logic](docs/data-and-logic.md)
+- [JSON API](docs/api.md)
+- [Frontend](docs/frontend.md)
+- [Development and releases](docs/development.md)
 
-| Document                                    | Contents                                                                  |
-| ------------------------------------------- | ------------------------------------------------------------------------- |
-| [architecture.md](docs/architecture.md)     | Package map, runtime flow, desktop vs daemon modes                        |
-| [detection.md](docs/detection.md)           | How language servers are discovered on Linux and Windows                  |
-| [data-and-logic.md](docs/data-and-logic.md) | Snapshot model, reset cycles, assumed-refill semantics, session inference |
-| [api.md](docs/api.md)                       | Full JSON API reference                                                   |
-| [frontend.md](docs/frontend.md)             | Design system, component map, data-fetch cadence                          |
-| [development.md](docs/development.md)       | Building, testing, packaging, release checklist                           |
+## License and Disclaimer
 
-## Disclaimer
-
-AGQ is an unofficial, local monitoring tool and is not affiliated with
-Antigravity or any model provider.
+AGQ is released under the [MIT License](LICENSE). It is not affiliated with Antigravity or any model provider.
