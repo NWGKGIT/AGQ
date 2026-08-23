@@ -7,7 +7,7 @@ import (
 )
 
 func TestLoadReturnsDefaultsWhenMissing(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	setTestHome(t)
 	t.Setenv("AGQ_PORT", "")
 
 	cfg := Load()
@@ -28,7 +28,7 @@ func TestDefaultHonorsAgqPort(t *testing.T) {
 }
 
 func TestSaveThenLoadRoundTrips(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	setTestHome(t)
 	t.Setenv("AGQ_PORT", "")
 
 	want := Config{ExposeAPI: true, Port: 8123, MaskEmails: true}
@@ -41,7 +41,7 @@ func TestSaveThenLoadRoundTrips(t *testing.T) {
 }
 
 func TestSaveRejectsInvalidPort(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	setTestHome(t)
 
 	if err := Save(Config{Port: 0}); err == nil {
 		t.Fatal("Save accepted port 0")
@@ -52,8 +52,7 @@ func TestSaveRejectsInvalidPort(t *testing.T) {
 }
 
 func TestLoadRecoversFromCorruptFile(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
+	home := setTestHome(t)
 	t.Setenv("AGQ_PORT", "")
 
 	dir := filepath.Join(home, ".agq")
@@ -67,4 +66,13 @@ func TestLoadRecoversFromCorruptFile(t *testing.T) {
 	if got := Load(); got.Port != DefaultPort {
 		t.Fatalf("port = %d, want default %d", got.Port, DefaultPort)
 	}
+}
+
+func setTestHome(t *testing.T) string {
+	t.Helper()
+	home := t.TempDir()
+	// os.UserHomeDir uses USERPROFILE on Windows and HOME elsewhere.
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	return home
 }
