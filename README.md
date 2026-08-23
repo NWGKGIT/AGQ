@@ -89,9 +89,9 @@ that process discovery needs the host PID namespace (`docker run --pid=host`).
 
 ## Configuration
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `AGQ_PORT` | `7432` | Local HTTP API port (daemon, or desktop with "Expose API" on). |
+| Variable   | Default | Description                                                    |
+| ---------- | ------- | -------------------------------------------------------------- |
+| `AGQ_PORT` | `7432`  | Local HTTP API port (daemon, or desktop with "Expose API" on). |
 
 Desktop settings (theme, email masking, API exposure) live in
 `~/.agq/desktop.json` and are editable from the Settings page.
@@ -107,14 +107,14 @@ AGQ stores runtime data under `~/.agq`:
 
 Extensive technical documentation lives in [`docs/`](docs/):
 
-| Document | Contents |
-| --- | --- |
-| [architecture.md](docs/architecture.md) | Package map, runtime flow, desktop vs daemon modes |
-| [detection.md](docs/detection.md) | How language servers are discovered on Linux and Windows |
+| Document                                    | Contents                                                                  |
+| ------------------------------------------- | ------------------------------------------------------------------------- |
+| [architecture.md](docs/architecture.md)     | Package map, runtime flow, desktop vs daemon modes                        |
+| [detection.md](docs/detection.md)           | How language servers are discovered on Linux and Windows                  |
 | [data-and-logic.md](docs/data-and-logic.md) | Snapshot model, reset cycles, assumed-refill semantics, session inference |
-| [api.md](docs/api.md) | Full JSON API reference |
-| [frontend.md](docs/frontend.md) | Design system, component map, data-fetch cadence |
-| [development.md](docs/development.md) | Building, testing, packaging, release checklist |
+| [api.md](docs/api.md)                       | Full JSON API reference                                                   |
+| [frontend.md](docs/frontend.md)             | Design system, component map, data-fetch cadence                          |
+| [development.md](docs/development.md)       | Building, testing, packaging, release checklist                           |
 
 ## Disclaimer
 
