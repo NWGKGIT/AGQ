@@ -1,0 +1,27 @@
+app-id: io.github.NWGKGIT.AGQ
+runtime: org.gnome.Platform
+runtime-version: '48'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.golang
+command: AGQ
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --filesystem=home/.agq:create
+  - --share=network
+build-options:
+  append-path: /usr/lib/sdk/golang/bin
+modules:
+  - name: agq
+    buildsystem: simple
+    sources:
+      - type: dir
+        path: source
+    build-commands:
+      - cd desktop && go build -mod=vendor -trimpath -tags webkit2_41 -o AGQ .
+      - install -Dm755 desktop/AGQ /app/bin/AGQ
+      - install -Dm644 desktop/packaging/flatpak/io.github.NWGKGIT.AGQ.desktop /app/share/applications/io.github.NWGKGIT.AGQ.desktop
+      - install -Dm644 desktop/packaging/linux/agq.png /app/share/icons/hicolor/512x512/apps/io.github.NWGKGIT.AGQ.png
