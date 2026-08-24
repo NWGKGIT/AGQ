@@ -117,7 +117,6 @@ jobs:
             desktop/build/msix/*.sha256
           if-no-files-found: error
 
-
   linux-appimage:
     runs-on: ubuntu-24.04
     steps:
@@ -185,8 +184,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --yes flatpak flatpak-builder rsync
-          flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-          flatpak install --noninteractive flathub \
+          sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          sudo flatpak install --noninteractive flathub \
             org.gnome.Sdk//48 \
             org.gnome.Platform//48 \
             org.freedesktop.Sdk.Extension.golang//24.08
