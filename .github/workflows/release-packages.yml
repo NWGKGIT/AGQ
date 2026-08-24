@@ -163,9 +163,48 @@ jobs:
             desktop/build/appimage/*.sha256
           if-no-files-found: error
 
+  linux-flatpak:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: desktop/go.mod
+          cache-dependency-path: |
+            go.sum
+            desktop/go.sum
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: desktop/frontend/package-lock.json
+
+      - name: Install Flatpak tooling and runtimes
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes flatpak flatpak-builder rsync
+          flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --noninteractive flathub \
+            org.gnome.Sdk//48 \
+            org.gnome.Platform//48 \
+            org.freedesktop.Sdk.Extension.golang//24.08
+
+      - name: Build Flatpak
+        run: ./desktop/packaging/flatpak/build-flatpak.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AGQ-linux-flatpak
+          path: |
+            desktop/build/AGQ.flatpak
+            desktop/build/AGQ.flatpak.sha256
+          if-no-files-found: error
+
   release:
-    needs: [windows-portable, windows-msix, linux-appimage]
-    if: ${{ always() && needs.windows-portable.result == 'success' && needs.linux-appimage.result == 'success' && (needs.windows-msix.result == 'success' || needs.windows-msix.result == 'skipped') }}
+    needs: [windows-portable, windows-msix, linux-appimage, linux-flatpak]
+    if: ${{ always() && needs.windows-portable.result == 'success' && needs.linux-appimage.result == 'success' && needs.linux-flatpak.result == 'success' && (needs.windows-msix.result == 'success' || needs.windows-msix.result == 'skipped') }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/download-artifact@v4

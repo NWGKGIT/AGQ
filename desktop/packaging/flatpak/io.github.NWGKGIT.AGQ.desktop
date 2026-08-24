@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=AGQ
+GenericName=Quota Monitor
+Comment=Monitor local Antigravity quota and account health
+Exec=AGQ
+Icon=io.github.NWGKGIT.AGQ
+Terminal=false
+Categories=Utility;System;Monitor;
+StartupNotify=true
+StartupWMClass=agq
+Keywords=AGQ;Antigravity;quota;monitor;

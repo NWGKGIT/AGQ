@@ -84,3 +84,24 @@ the AppDir produced by linuxdeploy and run smoke tests on the oldest supported
 distribution before publishing. AppImage signing and zsync update metadata
 are deferred until the project has a stable release repository URL and signing
 key; do not invent either value in source control.
+
+## Linux Flatpak
+
+Flatpak is the preferred alternative on systems where AppImage's bundled
+WebKitGTK libraries are unreliable. Install `flatpak-builder`, the GNOME 48
+runtime and SDK, and the matching Go SDK extension, then run:
+
+```sh
+make desktop-flatpak
+```
+
+The script stages an offline build, compiles against the Flatpak runtime, and
+emits `desktop/build/AGQ.flatpak` plus its SHA-256 file. Install it with:
+
+```sh
+flatpak install --user desktop/build/AGQ.flatpak
+```
+
+The sandbox persists only `~/.agq`, allows network access for local language
+server discovery and the optional loopback API, and supports Wayland with an
+X11 fallback.

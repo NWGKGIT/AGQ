@@ -5,7 +5,7 @@ UNIT     := agq.service
 CMD      := ./cmd/agq-daemon
 BUILDFLAGS ?= -buildvcs=false
 
-.PHONY: build test install enable disable uninstall clean run desktop-build desktop-dev desktop-test desktop-appimage brand-assets docker-build docker-test
+.PHONY: build test install enable disable uninstall clean run desktop-build desktop-dev desktop-test desktop-appimage desktop-flatpak brand-assets docker-build docker-test
 
 ## build - compile the daemon binary
 build:
@@ -75,6 +75,10 @@ brand-assets:
 ## desktop-appimage - build the x86_64 AppImage release artifact
 desktop-appimage:
 	cd desktop && ./packaging/linux/build-appimage.sh
+
+## desktop-flatpak - build the Flatpak release bundle
+desktop-flatpak:
+	cd desktop && ./packaging/flatpak/build-flatpak.sh
 
 ## logs - tail the daemon log
 logs:
