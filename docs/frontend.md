@@ -68,7 +68,7 @@ src/
 ## Data Flow
 
 **Polling cadence:**
-- Status, current account: 10 seconds (fast, cheap)
+- All live monitor data: 2-second fallback polling, plus immediate Wails update events
 - All other queries: 30 seconds (half the backend's 60s poll interval)
 
 **Data fetching** uses React Query (`@tanstack/react-query`):
@@ -83,7 +83,7 @@ export function useTimeseries(range: '7d' | '30d', agg: 'avg' | 'min') {
   return useQuery({
     queryKey: ['timeseries', range, agg],
     queryFn: () => GetTimeseries(range, agg),
-    refetchInterval: REFETCH_MS,  // 30 seconds
+    refetchInterval: REFETCH_MS,  // 2 seconds; events normally update sooner
     retry: false,
   })
 }

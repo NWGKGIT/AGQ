@@ -46,7 +46,7 @@ depend on interfaces where practical; `cmd` and `monitor` may import all.
    for Antigravity language servers (see [detection.md](detection.md)).
 2. Detected processes are validated by an actual `GetUserStatus` probe; the
    first loopback port that answers with a valid email becomes `ActivePort`.
-3. The poller polls every active process every **60 s**
+3. The poller polls the single authoritative process every **3 s**
    (`poller.DefaultNormalInterval`), deduplicates results by email (last
    success per cycle wins), and persists snapshots.
 4. After **5** consecutive all-failure cycles the poll interval backs off to

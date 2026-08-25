@@ -29,6 +29,8 @@ type Config struct {
 	// through Handler instead.
 	Addr   string
 	Logger *slog.Logger
+	// OnUpdate is called after a fresh account snapshot is persisted.
+	OnUpdate func()
 }
 
 // Runtime owns all long-lived monitor resources.
@@ -99,7 +101,7 @@ func (r *Runtime) Start(parent context.Context) error {
 	appState := state.New()
 	infoCh := make(chan []*domain.ProcessInfo, 1)
 	scanner := detector.New(languageserver.NewClient(languageserver.ProbeTimeout), r.cfg.Logger)
-	quotaPoller := poller.New(db, appState, languageserver.NewClient(languageserver.RequestTimeout), poller.Config{Logger: r.cfg.Logger})
+	quotaPoller := poller.New(db, appState, languageserver.NewClient(languageserver.RequestTimeout), poller.Config{Logger: r.cfg.Logger, OnUpdate: r.cfg.OnUpdate})
 	server := api.New(db, appState, api.WithLogger(r.cfg.Logger))
 	done := make(chan error, 1)
 

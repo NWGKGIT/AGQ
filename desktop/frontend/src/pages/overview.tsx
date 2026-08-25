@@ -30,9 +30,12 @@ export function OverviewPage() {
   const accounts = useMemo(
     () =>
       [...(accountsData?.accounts ?? [])].sort((a, b) => {
-        const activeDifference =
+        const currentDifference =
           Number(liveEmails.has(a.email)) - Number(liveEmails.has(b.email));
-        if (activeDifference !== 0) return -activeDifference;
+        if (currentDifference !== 0) return -currentDifference;
+
+        const recencyDifference = b.last_seen.localeCompare(a.last_seen);
+        if (recencyDifference !== 0) return recencyDifference;
 
         const healthDifference =
           HEALTH_SORT_ORDER[
@@ -42,7 +45,7 @@ export function OverviewPage() {
             deriveHealth(b.latest_snapshot?.models ?? []).status
           ];
         if (healthDifference !== 0) return healthDifference;
-        return b.last_seen.localeCompare(a.last_seen);
+        return a.email.localeCompare(b.email);
       }),
     [accountsData, liveEmails],
   );
