@@ -6,15 +6,9 @@ AGQ is unofficial and local-only. It probes loopback services, uses the language
 
 ## Screenshots
 
-Add release screenshots to [`docs/screenshots/`](docs/screenshots/). The expected files are:
-
-| File | View |
-| --- | --- |
-| `overview.png` | Overview dashboard |
-| `analytics.png` | Analytics page |
-| `settings.png` | Settings page |
-
-<!-- Screenshot placeholders: add the files above when ready. -->
+![Overview](docs/screenshots/overview.png)
+![Analytics](docs/screenshots/analytics.png)
+![Settings](docs/screenshots/settings.png)
 
 ## Features
 
