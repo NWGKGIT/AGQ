@@ -12,6 +12,7 @@ import (
 	"agq-daemon/monitor"
 	"agq-desktop/internal/apiclient"
 	"agq-desktop/internal/config"
+	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App is the Wails application context. Bound methods exposed to the
@@ -82,6 +83,11 @@ func (a *App) startMonitor(ctx context.Context) error {
 		DataDir: filepath.Dir(configPath),
 		Addr:    addr,
 		Logger:  slog.Default(),
+		OnUpdate: func() {
+			if a.ctx != nil {
+				wailsruntime.EventsEmit(a.ctx, "agq:data-updated")
+			}
+		},
 	})
 	if err != nil {
 		return err

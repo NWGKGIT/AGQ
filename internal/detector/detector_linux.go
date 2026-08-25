@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func platformProcesses() ([]processCandidate, error) {
@@ -26,9 +27,51 @@ func platformProcesses() ([]processCandidate, error) {
 		if err != nil {
 			continue
 		}
-		candidates = append(candidates, processCandidate{pid: pid, args: splitProcCmdline(data)})
+		ppid, start, ok := linuxProcessMetadata(pid)
+		if !ok {
+			continue
+		}
+		candidates = append(candidates, processCandidate{pid: pid, ppid: ppid, createTime: start, args: splitProcCmdline(data)})
 	}
 	return candidates, nil
+}
+
+func linuxProcessMetadata(pid int) (int, time.Time, bool) {
+	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+	if err != nil {
+		return 0, time.Time{}, false
+	}
+	closeParen := strings.LastIndexByte(string(data), ')')
+	if closeParen < 0 {
+		return 0, time.Time{}, false
+	}
+	fields := strings.Fields(string(data)[closeParen+2:])
+	if len(fields) < 20 {
+		return 0, time.Time{}, false
+	}
+	ppid, err := strconv.Atoi(fields[1])
+	if err != nil {
+		return 0, time.Time{}, false
+	}
+	ticks, err := strconv.ParseInt(fields[19], 10, 64)
+	if err != nil {
+		return 0, time.Time{}, false
+	}
+	b, err := os.ReadFile("/proc/stat")
+	if err != nil {
+		return 0, time.Time{}, false
+	}
+	var boot int64
+	for _, line := range strings.Split(string(b), "\n") {
+		if strings.HasPrefix(line, "btime ") {
+			boot, _ = strconv.ParseInt(strings.TrimSpace(strings.TrimPrefix(line, "btime ")), 10, 64)
+			break
+		}
+	}
+	if boot == 0 {
+		return 0, time.Time{}, false
+	}
+	return ppid, time.Unix(boot, 0).Add(time.Duration(ticks * int64(time.Second) / 100)), true
 }
 
 func platformLoopbackPorts(pid int, _ []int) ([]int, error) {

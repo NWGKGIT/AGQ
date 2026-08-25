@@ -16,12 +16,17 @@ import {
   SetConfig,
 } from '../../wailsjs/go/main/App'
 import type { config } from '../../wailsjs/go/models'
+import { EventsOn } from '../../wailsjs/runtime/runtime'
 
-// The monitor polls language servers every 60s; refreshing at half that keeps
+// The monitor polls language servers every 15s; refreshing at half that keeps
 // the UI at most one poll cycle behind without hammering the loopback API.
-const REFETCH_MS = 30_000
+const REFETCH_MS = 2_000
 // Live monitor state (ACTIVE/IDLE) is cheap and changes fast; poll it quicker.
-const STATUS_REFETCH_MS = 10_000
+const STATUS_REFETCH_MS = 2_000
+
+export function subscribeToUpdates(onUpdate: () => void) {
+  return EventsOn('agq:data-updated', onUpdate)
+}
 
 /** True when the app cannot reach its local monitoring runtime. */
 export function isDaemonUnreachable(error: unknown): boolean {

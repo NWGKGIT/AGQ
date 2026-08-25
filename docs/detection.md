@@ -84,9 +84,20 @@ When a user switches accounts in Antigravity:
 
 **Limitation:** AGQ cannot distinguish "which process is current" without Antigravity exposing that information. Restarting Antigravity (not AGQ) kills stale processes and forces fresh account data.
 
-## Refresh Interval
+## Freshness and Refresh Interval
 
-The detector runs continuously on a 15-second ticker (`DefaultScanInterval`). It sends process list updates to the poller only when the set of detected PIDs changes (a new process appeared or an old one exited).
+The detector runs continuously on a 5-second ticker (`DefaultScanInterval`). It identifies the newest Antigravity root, then accepts only child service processes whose PPID ancestry reaches that root and whose creation time is no older than the root. Of those, only the newest process is authoritative. Processes with unreadable metadata are rejected conservatively. Active quota polling runs every 3 seconds by default; process changes still trigger an immediate poll and repeated failures retain the five-minute backoff.
+
+When an account is changed inside an existing Antigravity process, its PID can
+remain unchanged. AGQ therefore does not re-probe loopback sockets on every
+5-second detector scan: that would cause socket churn and repeatedly
+re-authenticate identical connections. Instead, the unchanged process is
+polled on the 3-second ticker; once `GetUserStatus` returns the new email,
+the previous account is removed from the confirmed active state automatically.
+AGQ deliberately keeps exactly one current account: the email returned by the
+newest valid Antigravity process. Older accounts remain as history. Restart
+Antigravity after logging into a new account so the new session is unambiguous
+and old background processes cannot be mistaken for the current login.
 
 ## Thread Safety
 

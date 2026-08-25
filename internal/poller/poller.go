@@ -11,7 +11,7 @@ import (
 
 const (
 	// DefaultNormalInterval is the normal polling cadence while active.
-	DefaultNormalInterval = 60 * time.Second
+	DefaultNormalInterval = 3 * time.Second
 
 	// DefaultBackoffInterval is used after consecutive all-failure cycles.
 	DefaultBackoffInterval = 5 * time.Minute
@@ -43,6 +43,7 @@ type Config struct {
 	BackoffInterval time.Duration
 	MaxFailures     int
 	Logger          *slog.Logger
+	OnUpdate        func()
 }
 
 // Poller consumes detector updates and stores quota snapshots.
@@ -201,6 +202,9 @@ func (p *Poller) pollAllProcesses(
 	now := time.Now()
 	p.state.SetActive(emails)
 	p.state.SetPollTimes(now, now.Add(nextInterval))
+	if p.config.OnUpdate != nil {
+		p.config.OnUpdate()
+	}
 }
 
 // pidSetChanged reports whether the set of PIDs in next differs from prev,

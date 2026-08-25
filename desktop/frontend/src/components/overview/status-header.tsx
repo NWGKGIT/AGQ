@@ -2,44 +2,35 @@ import { Badge } from '@/components/ui/badge'
 import { useCurrentAccount, useStats } from '@/lib/api'
 import { ago, maskEmail, until } from '@/lib/format'
 
-/**
- * Monitor liveness line: state badge, active (or last known) account, poll
- * cadence, and the soonest upcoming reset across all accounts.
- */
+/** Current account, freshness, and the nearest quota reset. */
 export function StatusHeader({ masked }: { masked: boolean }) {
   const { data: current } = useCurrentAccount()
   const { data: stats } = useStats()
 
   const display = (email: string) => (masked ? maskEmail(email) : email)
 
-  const active = current?.is_live
-  const email = current?.email || current?.last_account?.email
+  const accountLive = current?.is_live === true
+  const staleSeconds = current?.last_poll_at
+    ? (Date.now() - new Date(current.last_poll_at).getTime()) / 1000
+    : undefined
 
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <Badge variant={active ? 'success' : 'secondary'}>
-        <span
-          className={`size-1.5 rounded-full ${active ? 'bg-success' : 'bg-muted-foreground'}`}
-        />
-        {current?.state ?? '…'}
+      <Badge variant={accountLive ? 'success' : 'secondary'}>
+        <span className={`size-1.5 rounded-full ${accountLive ? 'bg-success' : 'bg-muted-foreground'}`} />
+        {accountLive ? `Signed in · ${display(current?.email ?? '')}` : 'No account detected'}
       </Badge>
-      {email && (
-        <span className="font-mono text-sm">
-          {display(email)}
-          {!active && <span className="ml-2 text-xs text-muted-foreground">last seen</span>}
-          <span className="ml-2 text-xs text-muted-foreground">
-            (<a href="#" onClick={(e) => e.preventDefault()} title="Restart Antigravity if the account looks wrong" className="underline underline-offset-1 hover:text-foreground">restart for refresh</a>)
-          </span>
-        </span>
-      )}
       <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
-        {current?.last_poll_at && (
+        {staleSeconds === undefined ? (
+          <span>Checking for updates…</span>
+        ) : staleSeconds > 10 ? (
+          <span className="text-warning">Data may be stale · updated {ago(staleSeconds)} ago</span>
+        ) : (
           <span className="tnum">
-            polled{' '}
-            {ago((Date.now() - new Date(current.last_poll_at).getTime()) / 1000)} ago
+            Updated {ago(staleSeconds)} ago
           </span>
         )}
-        {active && current?.next_poll_at && (
+        {accountLive && current?.next_poll_at && (
           <span className="tnum">next in {until(current.next_poll_at)}</span>
         )}
         {stats?.next_reset && (
@@ -52,6 +43,11 @@ export function StatusHeader({ masked }: { masked: boolean }) {
           </Badge>
         )}
       </div>
+      {accountLive && (
+        <p className="w-full rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-muted-foreground">
+          Changed accounts? Restart Antigravity to apply the new login.
+        </p>
+      )}
     </div>
   )
 }

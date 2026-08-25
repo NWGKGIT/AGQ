@@ -13,7 +13,7 @@ import (
 
 const (
 	// DefaultScanInterval is how often the detector rescans local processes.
-	DefaultScanInterval = 15 * time.Second
+	DefaultScanInterval = 5 * time.Second
 
 	languageServerPrefix = "language_server_"
 )
@@ -24,8 +24,10 @@ type PortProber interface {
 }
 
 type processCandidate struct {
-	pid  int
-	args []string
+	pid        int
+	ppid       int
+	createTime time.Time
+	args       []string
 }
 
 type processEnumerator func() ([]processCandidate, error)
@@ -78,24 +80,86 @@ func (s *Scanner) ScanAll() []*domain.ProcessInfo {
 		return nil
 	}
 
-	// Sort candidates by PID descending so we probe newer processes first.
-	// When multiple language servers are running (e.g., after account switch),
-	// this heuristic prefers the most recently spawned process.
+	rootPID, rootStart := selectAntigravityRoot(candidates)
+	if rootPID == 0 {
+		// Keep injected, metadata-free candidates usable for unit/test hosts;
+		// production enumerators always provide metadata and therefore fail closed.
+		metadataPresent := false
+		for _, candidate := range candidates {
+			if candidate.ppid != 0 || !candidate.createTime.IsZero() {
+				metadataPresent = true
+				break
+			}
+		}
+		if metadataPresent {
+			s.logger().Debug("detector: active Antigravity root not found")
+			return nil
+		}
+	}
+	filtered := candidates[:0]
+	for _, candidate := range candidates {
+		if !isLanguageServer(candidate.args) || rootPID > 0 && (candidate.createTime.IsZero() || candidate.createTime.Before(rootStart) || !descendsFrom(candidate.pid, rootPID, candidates)) {
+			continue
+		}
+		filtered = append(filtered, candidate)
+	}
+	candidates = filtered
+
+	// Only the newest process is authoritative. Older responsive processes may
+	// belong to a previous login and must never overwrite the current account.
 	for i := 0; i < len(candidates); i++ {
 		for j := i + 1; j < len(candidates); j++ {
-			if candidates[j].pid > candidates[i].pid {
+			if candidates[j].createTime.After(candidates[i].createTime) || candidates[j].createTime.Equal(candidates[i].createTime) && candidates[j].pid > candidates[i].pid {
 				candidates[i], candidates[j] = candidates[j], candidates[i]
 			}
 		}
 	}
 
-	results := make([]*domain.ProcessInfo, 0, len(candidates))
-	for _, candidate := range candidates {
-		if info, ok := s.tryCandidate(candidate); ok {
-			results = append(results, info)
+	if len(candidates) == 0 {
+		return nil
+	}
+	if info, ok := s.tryCandidate(candidates[0]); ok {
+		return []*domain.ProcessInfo{info}
+	}
+	return nil
+}
+
+func selectAntigravityRoot(candidates []processCandidate) (int, time.Time) {
+	var pid int
+	var start time.Time
+	for _, c := range candidates {
+		if !isAntigravityRoot(c.args) || c.createTime.IsZero() || c.createTime.After(start) {
+			if isAntigravityRoot(c.args) && !c.createTime.IsZero() {
+				pid, start = c.pid, c.createTime
+			}
 		}
 	}
-	return results
+	return pid, start
+}
+
+func isAntigravityRoot(args []string) bool {
+	joined := strings.ToLower(strings.Join(args, " "))
+	return strings.Contains(joined, "antigravity") && !strings.Contains(joined, languageServerPrefix)
+}
+
+func descendsFrom(pid, root int, candidates []processCandidate) bool {
+	if pid == root {
+		return true
+	}
+	byPID := make(map[int]int, len(candidates))
+	for _, c := range candidates {
+		byPID[c.pid] = c.ppid
+	}
+	for i := 0; i < len(candidates)+1 && pid > 1; i++ {
+		pid = byPID[pid]
+		if pid == root {
+			return true
+		}
+		if pid == 0 {
+			return false
+		}
+	}
+	return false
 }
 
 func sendUpdate(ctx context.Context, out chan<- []*domain.ProcessInfo, infos []*domain.ProcessInfo) {

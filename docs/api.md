@@ -17,7 +17,10 @@ Health and uptime.
 ```
 
 ### GET /api/status
-Daemon state (ACTIVE/IDLE), active accounts, and poll timing.
+Daemon state (whether AGQ is monitoring Antigravity) is separate from
+confirmed Antigravity login state (`is_live`). An ACTIVE monitor can retain a
+last-known account while Antigravity has not yet produced a fresh confirmed
+login.
 
 **Response:**
 ```json

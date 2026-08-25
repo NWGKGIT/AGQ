@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -36,10 +37,14 @@ func platformProcesses() ([]processCandidate, error) {
 	var candidates []processCandidate
 	for {
 		executable := windows.UTF16ToString(entry.ExeFile[:])
-		if hasLanguageServerExecutable([]string{executable}) {
+		if hasLanguageServerExecutable([]string{executable}) || isAntigravityRoot([]string{executable}) {
 			args, err := windowsProcessArgs(entry.ProcessID)
-			if err == nil {
-				candidates = append(candidates, processCandidate{pid: int(entry.ProcessID), args: args})
+			if err != nil && isAntigravityRoot([]string{executable}) {
+				args = []string{executable}
+			}
+			start, timeErr := windowsProcessCreateTime(entry.ProcessID)
+			if len(args) > 0 && timeErr == nil {
+				candidates = append(candidates, processCandidate{pid: int(entry.ProcessID), ppid: int(entry.ParentProcessID), createTime: start, args: args})
 			}
 		}
 
@@ -52,6 +57,24 @@ func platformProcesses() ([]processCandidate, error) {
 		}
 	}
 	return candidates, nil
+}
+
+func windowsProcessCreateTime(pid uint32) (time.Time, error) {
+	process, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, pid)
+	if err != nil {
+		return time.Time{}, err
+	}
+	defer windows.CloseHandle(process)
+	var creation, exit, kernel, user windows.Filetime
+	if err := windows.GetProcessTimes(process, &creation, &exit, &kernel, &user); err != nil {
+		return time.Time{}, err
+	}
+	const windowsToUnix100ns = 116444736000000000
+	value := (uint64(creation.HighDateTime) << 32) | uint64(creation.LowDateTime)
+	if value < windowsToUnix100ns {
+		return time.Time{}, fmt.Errorf("invalid process creation time")
+	}
+	return time.Unix(0, int64(value-windowsToUnix100ns)*100), nil
 }
 
 func windowsProcessArgs(pid uint32) ([]string, error) {

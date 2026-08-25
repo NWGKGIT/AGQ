@@ -84,7 +84,7 @@ export function AccountCard({
         <div className="flex shrink-0 items-center gap-1.5">
           {live && (
             <Badge className="bg-sky-500 text-white hover:bg-sky-500">
-              Active
+              Current
             </Badge>
           )}
           <Badge
@@ -99,19 +99,6 @@ export function AccountCard({
             }
           >
             {HEALTH_LABELS[health.status]}
-          </Badge>
-          <Badge
-            variant="outline"
-            className="font-normal text-muted-foreground"
-          >
-            <span
-              className={cn(
-                "size-1.5 rounded-full",
-                live ? "bg-sky-500" : "bg-muted-foreground/50",
-              )}
-              aria-hidden="true"
-            />
-            {live ? "Live" : "Idle"}
           </Badge>
           <ChevronRight
             className="size-3.5 text-muted-foreground/0 transition-colors duration-150 group-hover:text-muted-foreground"
