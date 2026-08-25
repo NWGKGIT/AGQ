@@ -42,7 +42,7 @@ flatpak run io.github.NWGKGIT.AGQ
 
 ### Windows
 
-Download the Windows x64 ZIP, extract it, and run `AGQ.exe`. MSIX packages are published when Store identity configuration is available.
+Download the Windows x64 ZIP, extract it, and run `AGQ.exe`.
 
 ## Build From Source
 
