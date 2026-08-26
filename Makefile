@@ -13,7 +13,7 @@ BUILDFLAGS ?= -buildvcs=false
 VERSION ?= $(shell git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null | sed 's/^v//')
 
 .PHONY: build test install enable disable uninstall clean run logs status \
-        desktop-build desktop-dev desktop-test desktop-appimage \
+		desktop-build desktop-dev desktop-test \
         desktop-deb desktop-rpm desktop-arch desktop-linux-packages \
         brand-assets docker-build docker-test check-version
 
@@ -79,7 +79,7 @@ desktop-test:
 	cd desktop && go test ./...
 	cd desktop/frontend && npm test
 
-## brand-assets - regenerate Wails, Windows Store, and AppImage icons
+## brand-assets - regenerate Wails and Windows Store icons
 brand-assets:
 	cd desktop && ./packaging/generate-assets.sh
 
@@ -90,10 +90,6 @@ check-version:
 		echo "Use VERSION=1.1.0 or create a release tag such as v1.1.0."; \
 		exit 1; \
 	}
-
-## desktop-appimage - build the x86_64 AppImage release artifact
-desktop-appimage: check-version
-	cd desktop && VERSION=$(VERSION) ./packaging/linux/build-appimage.sh
 
 ## desktop-deb - build the Debian package
 desktop-deb: check-version
