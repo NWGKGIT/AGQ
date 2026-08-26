@@ -9,7 +9,7 @@ on:
         default: 1.0.0
   push:
     tags:
-      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v*"
 
 permissions:
   contents: write
@@ -53,7 +53,11 @@ jobs:
         env:
           RELEASE_VERSION: ${{ needs.release-metadata.outputs.version }}
         run: |
+          $goBin = Join-Path $env:RUNNER_TEMP 'go-bin'
+          New-Item -ItemType Directory -Path $goBin -Force | Out-Null
+          $env:GOBIN = $goBin
           go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
+          Add-Content -Path $env:GITHUB_PATH -Value $goBin
           npm ci --prefix desktop/frontend
           npm run build --prefix desktop/frontend
           Push-Location desktop
@@ -157,10 +161,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build native package
-        env: { VERSION: ${{ needs.release-metadata.outputs.version }} }
+        env:
+          VERSION: ${{ needs.release-metadata.outputs.version }}
         run: ./desktop/packaging/linux/build-native-packages.sh "${{ matrix.kind }}"
       - name: Test package in clean target container
-        env: { VERSION: ${{ needs.release-metadata.outputs.version }} }
+        env:
+          VERSION: ${{ needs.release-metadata.outputs.version }}
         run: ./desktop/packaging/linux/test-native-package.sh "${{ matrix.kind }}"
       - uses: actions/upload-artifact@v4
         with:
@@ -177,10 +183,12 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build AppImage
-        env: { VERSION: ${{ needs.release-metadata.outputs.version }} }
+        env:
+          VERSION: ${{ needs.release-metadata.outputs.version }}
         run: ./desktop/packaging/linux/build-appimage.sh
       - name: Test AppImage extraction
-        env: { VERSION: ${{ needs.release-metadata.outputs.version }} }
+        env:
+          VERSION: ${{ needs.release-metadata.outputs.version }}
         run: ./desktop/packaging/linux/test-appimage.sh
 
       - uses: actions/upload-artifact@v4
@@ -192,7 +200,14 @@ jobs:
           if-no-files-found: error
 
   release:
-    needs: [release-metadata, windows-portable, windows-msix, linux-native, linux-appimage]
+    needs:
+      [
+        release-metadata,
+        windows-portable,
+        windows-msix,
+        linux-native,
+        linux-appimage,
+      ]
     if: ${{ always() && needs.windows-portable.result == 'success' && needs.linux-native.result == 'success' && needs.linux-appimage.result == 'success' && (needs.windows-msix.result == 'success' || needs.windows-msix.result == 'skipped') }}
     runs-on: ubuntu-24.04
     steps:
