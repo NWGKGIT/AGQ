@@ -13,8 +13,8 @@ linuxdeploy_command="${LINUXDEPLOY_COMMAND:-linuxdeploy-x86_64.AppImage}"
 appimagetool_command="${APPIMAGETOOL_COMMAND:-appimagetool-x86_64.AppImage}"
 linuxdeploy_url="${LINUXDEPLOY_URL:-https://github.com/linuxdeploy/linuxdeploy/releases/download/1-alpha-20251107-1/linuxdeploy-x86_64.AppImage}"
 appimagetool_url="${APPIMAGETOOL_URL:-https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage}"
-linuxdeploy_sha256="${LINUXDEPLOY_SHA256:-421ca71d5c69ea97c6309276232990d43df1dcece0edfaa26bbf926ff96ed12e}"
-appimagetool_sha256="${APPIMAGETOOL_SHA256:-a6d71e2b6cd66f8e8d16c37ad164658985e0cf5fcaa950c90a482890cb9d13e0}"
+linuxdeploy_sha256="${LINUXDEPLOY_SHA256:-c20cd71e3a4e3b80c3483cef793cda3f4e990aca14014d23c544ca3ce1270b4d}"
+appimagetool_sha256="${APPIMAGETOOL_SHA256:-ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0}"
 if [[ "$(uname -m)" != "x86_64" ]]; then
   echo "The x86_64 AppImage must be built on an x86_64 Linux host." >&2
   exit 1
