@@ -71,6 +71,7 @@ for each process:
 ```
 
 This means if two processes return the same email, the second snapshot overwrites the first. In practice, this occurs rarely (processes are distinct per account), but can happen if:
+
 - Antigravity takes time to fully switch accounts
 - The same email is used across multiple workspace processes
 
@@ -102,15 +103,16 @@ Each event captures the quota state (average per provider) at that boundary.
 
 The poller runs on two intervals:
 
-| State | Interval | Trigger |
-|-------|----------|---------|
-| Normal | 60 seconds | Active process(es) detected |
+| State   | Interval  | Trigger                           |
+| ------- | --------- | --------------------------------- |
+| Normal  | 3 seconds | Active process(es) detected       |
 | Backoff | 5 minutes | 5+ consecutive all-failure cycles |
-| Idle | Never | No processes detected |
+| Idle    | Never     | No processes detected             |
 
 A **failure cycle** occurs when every detected process fails to poll (all return errors). After 5 such cycles, the interval backs off to 5 minutes. The first successful poll restores 60-second cadence.
 
 This balancing act:
+
 - Keeps data fresh when the language server is healthy
 - Avoids hammering a broken endpoint
 - Gracefully degrades when Antigravity is offline
@@ -122,7 +124,7 @@ Detector (15s scan)
   ↓
 [ProcessInfo list]
   ↓
-Poller (60s/5m poll)
+Poller (3s/5m poll)
   ↓
 [QuotaSnapshot per email]
   ↓
@@ -140,12 +142,14 @@ JSON responses (frontend / external tools)
 Three tables:
 
 **accounts**
+
 - `id` - primary key
 - `email` - unique account email
 - `plan_name` - user tier name
 - `first_seen`, `last_seen` - timestamps
 
 **snapshots**
+
 - `id` - primary key
 - `account_id` - foreign key to accounts
 - `captured_at` - poll timestamp (indexed with account_id)
@@ -154,6 +158,7 @@ Three tables:
 - `raw_json` - original response (not used)
 
 **model_quotas**
+
 - `id` - primary key
 - `snapshot_id` - foreign key to snapshots
 - `label`, `model_id` - model identifier

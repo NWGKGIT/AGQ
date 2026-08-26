@@ -21,20 +21,20 @@ an optional headless daemon. Both run the identical discovery → poll → persi
 
 ## Package map
 
-| Package | Responsibility |
-| --- | --- |
-| `cmd/agq-daemon` | Headless entry point: logging, signals, wiring. |
-| `monitor` | `Runtime` that owns and wires store, detector, poller, API server; embeddable. |
-| `internal/domain` | Shared domain types. No project-internal dependencies. |
-| `internal/detector` | Process scanning (`/proc` on Linux, Toolhelp32/TcpTable on Windows), cmdline parsing, loopback port discovery. |
-| `internal/languageserver` | `GetUserStatus` HTTP client and response parsing. |
-| `internal/poller` | Poll scheduling, account dedup, persistence, daemon status updates. |
-| `internal/store` | SQLite schema, migrations, writes, read queries. |
-| `internal/state` | Thread-safe daemon status snapshots. |
-| `internal/api` | HTTP handlers, serve-time logic (assumed refill), CORS. |
-| `desktop` | Wails shell: `App` bindings, config, in-process API client. |
-| `desktop/internal/apiclient` | Typed client that dispatches requests straight to the embedded handler (no sockets). |
-| `desktop/internal/config` | `~/.agq/desktop.json` settings (port, API exposure, email masking). |
+| Package                      | Responsibility                                                                                                 |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `cmd/agq-daemon`             | Headless entry point: logging, signals, wiring.                                                                |
+| `monitor`                    | `Runtime` that owns and wires store, detector, poller, API server; embeddable.                                 |
+| `internal/domain`            | Shared domain types. No project-internal dependencies.                                                         |
+| `internal/detector`          | Process scanning (`/proc` on Linux, Toolhelp32/TcpTable on Windows), cmdline parsing, loopback port discovery. |
+| `internal/languageserver`    | `GetUserStatus` HTTP client and response parsing.                                                              |
+| `internal/poller`            | Poll scheduling, account dedup, persistence, daemon status updates.                                            |
+| `internal/store`             | SQLite schema, migrations, writes, read queries.                                                               |
+| `internal/state`             | Thread-safe daemon status snapshots.                                                                           |
+| `internal/api`               | HTTP handlers, serve-time logic (assumed refill), CORS.                                                        |
+| `desktop`                    | Wails shell: `App` bindings, config, in-process API client.                                                    |
+| `desktop/internal/apiclient` | Typed client that dispatches requests straight to the embedded handler (no sockets).                           |
+| `desktop/internal/config`    | `~/.agq/desktop.json` settings (port, API exposure, email masking).                                            |
 
 Dependency rules: `domain` is imported by everything and imports nothing;
 `store` owns SQL and returns `domain` types; `api`, `poller`, and `detector`
@@ -42,7 +42,7 @@ depend on interfaces where practical; `cmd` and `monitor` may import all.
 
 ## Runtime flow
 
-1. The detector scans processes every **15 s** (`detector.DefaultScanInterval`)
+1. The detector scans processes every **5 s** (`detector.DefaultScanInterval`)
    for Antigravity language servers (see [detection.md](detection.md)).
 2. Detected processes are validated by an actual `GetUserStatus` probe; the
    first loopback port that answers with a valid email becomes `ActivePort`.

@@ -25,20 +25,32 @@ AGQ is unofficial and local-only. It probes loopback services, uses the language
 
 Download the latest artifacts from [GitHub Releases](https://github.com/NWGKGIT/AGQ/releases).
 
+Select the release version you want, then choose the artifact matching your
+platform. Linux packages include Debian (`.deb`), Fedora (`.rpm`), Arch
+(`.pkg.tar.zst`), and an AppImage fallback. Windows releases provide an x64
+ZIP; the MSIX is available when Store package identity configuration is
+enabled for that release.
+
 ### Linux
 
-```sh
-chmod +x AGQ-x86_64.AppImage
-./AGQ-x86_64.AppImage
-```
-
-Alternatively, install the Flatpak release. This uses a managed WebKitGTK
-runtime and is recommended when the AppImage is incompatible with the host:
+Native packages are the recommended installation method:
 
 ```sh
-flatpak install --user AGQ.flatpak
-flatpak run io.github.NWGKGIT.AGQ
+sudo apt install ./agq_<version>_amd64.deb
+sudo dnf install ./agq-<version>-1.x86_64.rpm
+sudo pacman -U ./agq-<version>-1-x86_64.pkg.tar.zst
 ```
+
+The Debian package is built on Debian 12 for Debian 12 and compatible Ubuntu releases. The RPM is built for Fedora 42, and the Arch package targets current Arch Linux. An AppImage remains available for other distributions:
+
+```sh
+chmod +x AGQ-<version>-x86_64.AppImage
+./AGQ-<version>-x86_64.AppImage
+```
+
+AppImages use the host's FUSE integration when mounted. If your distribution
+does not provide `libfuse.so.2`, run the AppImage with
+`APPIMAGE_EXTRACT_AND_RUN=1`.
 
 ### Windows
 
@@ -46,7 +58,7 @@ Download the Windows x64 ZIP, extract it, and run `AGQ.exe`.
 
 ## Build From Source
 
-Requirements: Go 1.26+, Node.js 24+, Wails v2.13.0, and platform webview dependencies. Linux builds require GTK3 and WebKitGTK 4.1. Windows builds require a supported Go and C compiler toolchain.
+Requirements: Go 1.26+, Node.js 24+, Wails v2.15.0, and platform webview dependencies. Linux builds require GTK3 and WebKitGTK 4.1. Windows builds require a supported Go and C compiler toolchain.
 
 ```sh
 npm ci --prefix desktop/frontend
@@ -58,8 +70,8 @@ Useful targets:
 ```sh
 make desktop-dev       # Wails development mode
 make desktop-test      # Desktop Go tests, frontend tests, and build
-make desktop-appimage  # Linux x86_64 AppImage
-make desktop-flatpak   # Linux Flatpak bundle
+make desktop-linux-packages # Linux .deb/.rpm/.pkg.tar.zst
+make desktop-appimage       # Linux x86_64 fallback AppImage
 make test              # Core Go tests
 make docker-test       # Core tests in Docker
 ```

@@ -15,7 +15,22 @@ permissions:
   contents: write
 
 jobs:
+  release-metadata:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - id: version
+        env:
+          REQUESTED_VERSION: ${{ inputs.version || github.ref_name }}
+        run: |
+          version="${REQUESTED_VERSION#v}"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid version: $REQUESTED_VERSION" >&2; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
   windows-portable:
+    needs: release-metadata
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
@@ -36,9 +51,9 @@ jobs:
       - name: Build portable Windows package
         shell: pwsh
         env:
-          DISPATCH_VERSION: ${{ inputs.version }}
+          RELEASE_VERSION: ${{ needs.release-metadata.outputs.version }}
         run: |
-          go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
           npm ci --prefix desktop/frontend
           npm run build --prefix desktop/frontend
           Push-Location desktop
@@ -47,7 +62,7 @@ jobs:
           } finally {
             Pop-Location
           }
-          $semanticVersion = if ($env:DISPATCH_VERSION) { $env:DISPATCH_VERSION } else { $env:GITHUB_REF_NAME.TrimStart('v') }
+          $semanticVersion = $env:RELEASE_VERSION
           if ($semanticVersion -notmatch '^\d+\.\d+\.\d+$') { throw "Release version must use major.minor.patch: $semanticVersion" }
           New-Item -ItemType Directory -Path release -Force | Out-Null
           Copy-Item desktop/build/bin/AGQ.exe release/AGQ.exe
@@ -60,6 +75,7 @@ jobs:
           if-no-files-found: error
 
   windows-msix:
+    needs: release-metadata
     if: ${{ vars.WINDOWS_PACKAGE_IDENTITY_NAME != '' && vars.WINDOWS_PACKAGE_PUBLISHER != '' && vars.WINDOWS_PUBLISHER_DISPLAY_NAME != '' }}
     runs-on: windows-2025
     env:
@@ -85,20 +101,24 @@ jobs:
       - name: Install Wails and frontend dependencies
         shell: pwsh
         run: |
-          go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
+          $goBin = Join-Path $env:RUNNER_TEMP 'go-bin'
+          New-Item -ItemType Directory -Path $goBin -Force | Out-Null
+          $env:GOBIN = $goBin
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
+          Add-Content -Path $env:GITHUB_PATH -Value $goBin
           npm ci --prefix desktop/frontend
 
       - name: Build unsigned Store package
         shell: pwsh
         env:
-          DISPATCH_VERSION: ${{ inputs.version }}
+          RELEASE_VERSION: ${{ needs.release-metadata.outputs.version }}
         run: |
           if (-not $env:WINDOWS_PACKAGE_IDENTITY_NAME -or
               -not $env:WINDOWS_PACKAGE_PUBLISHER -or
               -not $env:WINDOWS_PUBLISHER_DISPLAY_NAME) {
             throw 'Set all three protected Windows package identity repository variables before releasing.'
           }
-          $semanticVersion = if ($env:DISPATCH_VERSION) { $env:DISPATCH_VERSION } else { $env:GITHUB_REF_NAME.TrimStart('v') }
+          $semanticVersion = $env:RELEASE_VERSION
           if ($semanticVersion -notmatch '^\d+\.\d+\.\d+$') {
             throw "Release version must use major.minor.patch: $semanticVersion"
           }
@@ -117,42 +137,51 @@ jobs:
             desktop/build/msix/*.sha256
           if-no-files-found: error
 
+  linux-native:
+    needs: release-metadata
+    runs-on: ubuntu-24.04
+    name: ${{ matrix.label }} (Ubuntu Docker host)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - kind: deb
+            label: deb - Debian 12 container
+            artifact: agq_*.deb
+          - kind: rpm
+            label: rpm - Fedora 42 container
+            artifact: agq-*.rpm
+          - kind: arch
+            label: arch - Arch container
+            artifact: agq-*.pkg.tar.zst
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build native package
+        env: { VERSION: ${{ needs.release-metadata.outputs.version }} }
+        run: ./desktop/packaging/linux/build-native-packages.sh "${{ matrix.kind }}"
+      - name: Test package in clean target container
+        env: { VERSION: ${{ needs.release-metadata.outputs.version }} }
+        run: ./desktop/packaging/linux/test-native-package.sh "${{ matrix.kind }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AGQ-linux-${{ matrix.kind }}
+          path: |
+            desktop/build/packages/${{ matrix.artifact }}
+            desktop/build/packages/${{ matrix.artifact }}.sha256
+          if-no-files-found: error
+
   linux-appimage:
+    needs: release-metadata
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: desktop/go.mod
-          cache-dependency-path: |
-            go.sum
-            desktop/go.sum
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: desktop/frontend/package-lock.json
-
-      - name: Install Linux build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes libgtk-3-dev libwebkit2gtk-4.1-dev librsvg2-bin imagemagick
-          go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
-          npm ci --prefix desktop/frontend
-
-      - name: Install AppImage packaging tools
-        run: |
-          curl -fsSL -o linuxdeploy-x86_64.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-          curl -fsSL -o appimagetool-x86_64.AppImage https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-          chmod +x linuxdeploy-x86_64.AppImage appimagetool-x86_64.AppImage
-          echo "$GITHUB_WORKSPACE" >> "$GITHUB_PATH"
-
       - name: Build AppImage
-        env:
-          APPIMAGE_EXTRACT_AND_RUN: "1"
+        env: { VERSION: ${{ needs.release-metadata.outputs.version }} }
         run: ./desktop/packaging/linux/build-appimage.sh
+      - name: Test AppImage extraction
+        env: { VERSION: ${{ needs.release-metadata.outputs.version }} }
+        run: ./desktop/packaging/linux/test-appimage.sh
 
       - uses: actions/upload-artifact@v4
         with:
@@ -162,61 +191,37 @@ jobs:
             desktop/build/appimage/*.sha256
           if-no-files-found: error
 
-  linux-flatpak:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: desktop/go.mod
-          cache-dependency-path: |
-            go.sum
-            desktop/go.sum
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: desktop/frontend/package-lock.json
-
-      - name: Install Flatpak tooling and runtimes
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes flatpak flatpak-builder rsync
-          sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-          sudo flatpak install --noninteractive flathub \
-            org.gnome.Sdk//49 \
-            org.gnome.Platform//49 \
-            org.freedesktop.Sdk.Extension.golang//25.08
-
-      - name: Build Flatpak
-        run: ./desktop/packaging/flatpak/build-flatpak.sh
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: AGQ-linux-flatpak
-          path: |
-            desktop/build/AGQ.flatpak
-            desktop/build/AGQ.flatpak.sha256
-          if-no-files-found: error
-
   release:
-    needs: [windows-portable, windows-msix, linux-appimage, linux-flatpak]
-    if: ${{ always() && needs.windows-portable.result == 'success' && needs.linux-appimage.result == 'success' && needs.linux-flatpak.result == 'success' && (needs.windows-msix.result == 'success' || needs.windows-msix.result == 'skipped') }}
+    needs: [release-metadata, windows-portable, windows-msix, linux-native, linux-appimage]
+    if: ${{ always() && needs.windows-portable.result == 'success' && needs.linux-native.result == 'success' && needs.linux-appimage.result == 'success' && (needs.windows-msix.result == 'success' || needs.windows-msix.result == 'skipped') }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: release-assets
 
+      - name: Validate release assets
+        run: |
+          set -euo pipefail
+          mapfile -d '' assets < <(find release-assets -type f -print0)
+          ((${#assets[@]} > 0))
+          for checksum in "${assets[@]}"; do
+            [[ "$checksum" == *.sha256 ]] || continue
+            (cd "$(dirname "$checksum")" && sha256sum --check "$(basename "$checksum")")
+          done
+          duplicate=$(printf '%s\n' "${assets[@]}" | xargs -n1 basename | sort | uniq -d)
+          [[ -z "$duplicate" ]] || { echo "Duplicate release assets: $duplicate" >&2; exit 1; }
+
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.release-metadata.outputs.version }}
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          assets=$(find release-assets -type f -print)
-          gh release create "$GITHUB_REF_NAME" $assets \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "AGQ $version" \
-            --generate-notes
+          version="$RELEASE_VERSION"
+          tag="v$version"
+          mapfile -d '' assets < <(find release-assets -type f -print0)
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$tag" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "AGQ $version" --generate-notes
+          fi

@@ -26,7 +26,7 @@ before release.
 Requirements:
 
 - Windows 10/11 SDK (`makeappx.exe`, and `signtool.exe` for sideload signing)
-- Go, Node.js, and Wails v2.13.0
+- Go, Node.js, and Wails v2.15.0
 - the exact package identity and publisher values assigned in Partner Center
 
 From a Windows PowerShell prompt in `desktop/`:
@@ -65,7 +65,8 @@ Add capabilities only when a shipped feature demonstrably requires them.
 ## Linux x86_64 AppImage
 
 Install the Wails Linux build prerequisites, `linuxdeploy-x86_64.AppImage`, and
-`appimagetool-x86_64.AppImage` on an x86_64 build host. Put both tools on
+the `appimagetool-x86_64.AppImage` release from
+[`appimagetool`](https://github.com/AppImage/appimagetool/releases) on an x86_64 build host. The script downloads either tool when it is not already on
 `PATH`, then run:
 
 ```sh
@@ -79,29 +80,24 @@ AppImage plus SHA-256 file. It does not install systemd units or modify the
 host system.
 
 Validate the artifact on clean Ubuntu LTS and Arch installations under X11
-and Wayland. WebKitGTK remains a compatibility-sensitive dependency; inspect
+and Wayland. AppImage launch still depends on the host's FUSE support; users
+without the FUSE 2 compatibility library can use `APPIMAGE_EXTRACT_AND_RUN=1`. WebKitGTK remains a compatibility-sensitive dependency; inspect
 the AppDir produced by linuxdeploy and run smoke tests on the oldest supported
 distribution before publishing. AppImage signing and zsync update metadata
 are deferred until the project has a stable release repository URL and signing
 key; do not invent either value in source control.
 
-## Linux Flatpak
+## Linux native packages
 
-Flatpak is the preferred alternative on systems where AppImage's bundled
-WebKitGTK libraries are unreliable. Install `flatpak-builder`, the GNOME 48
-runtime and SDK, and the matching Go SDK extension, then run:
+Native packages are built in Docker containers matching their target families:
 
 ```sh
-make desktop-flatpak
+VERSION=1.0.0 ./packaging/linux/build-native-packages.sh
 ```
 
-The script stages an offline build, compiles against the Flatpak runtime, and
-emits `desktop/build/AGQ.flatpak` plus its SHA-256 file. Install it with:
-
-```sh
-flatpak install --user desktop/build/AGQ.flatpak
-```
-
-The sandbox persists only `~/.agq`, allows network access for local language
-server discovery and the optional loopback API, and supports Wayland with an
-X11 fallback.
+`VERSION` is required when invoking the Makefile targets. This emits an x86*64 package built on Debian 12, an RPM built on Fedora 42,
+and a package for current Arch Linux under `desktop/build/packages`.
+Install downloaded files with `apt install ./agq*<version>\_amd64.deb`,
+`dnf install ./agq-<version>-1.x86_64.rpm`, or
+`pacman -U ./agq-<version>-1-x86_64.pkg.tar.zst`. Packages install only the
+desktop application and declare GTK3/WebKitGTK runtime dependencies.

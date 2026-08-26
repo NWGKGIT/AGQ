@@ -7,38 +7,46 @@ All responses use 2-space JSON indentation. Dates are RFC3339 UTC. Fractions are
 ## Health & Status
 
 ### GET /api/health
+
 Health and uptime.
 
 **Response:**
+
 ```json
 {
-  "uptime_seconds": 12345
+  "status": "ok",
+  "uptime": "2h15m30s"
 }
 ```
 
 ### GET /api/status
+
 Daemon state (whether AGQ is monitoring Antigravity) is separate from
 confirmed Antigravity login state (`is_live`). An ACTIVE monitor can retain a
 last-known account while Antigravity has not yet produced a fresh confirmed
 login.
 
 **Response:**
+
 ```json
 {
   "state": "ACTIVE",
-  "active_emails": ["user@example.com"],
+  "emails": ["user@example.com"],
   "last_poll_at": "2026-07-15T14:30:00Z",
   "next_poll_at": "2026-07-15T14:31:00Z",
-  "startup_at": "2026-07-15T09:00:00Z"
+  "uptime": "5h30m",
+  "started_at": "2026-07-15T09:00:00Z"
 }
 ```
 
 ## Accounts
 
 ### GET /api/accounts
+
 List all known accounts with their latest snapshots.
 
 **Response:**
+
 ```json
 {
   "accounts": [
@@ -71,24 +79,47 @@ List all known accounts with their latest snapshots.
 ```
 
 ### GET /api/account/current
+
 Current active account (or last known account if idle).
 
 **Response:**
+
 ```json
 {
-  "is_live": true,
   "state": "ACTIVE",
+  "is_live": true,
   "email": "user@example.com",
-  "last_account": null,
+  "account": {
+    "id": 1,
+    "email": "user@example.com",
+    "plan_name": "Pro",
+    "first_seen": "2026-07-01T08:00:00Z",
+    "last_seen": "2026-07-15T14:30:00Z",
+    "latest_snapshot": null
+  },
+  "accounts": [
+    {
+      "id": 1,
+      "email": "user@example.com",
+      "plan_name": "Pro",
+      "first_seen": "2026-07-01T08:00:00Z",
+      "last_seen": "2026-07-15T14:30:00Z",
+      "latest_snapshot": null
+    }
+  ],
   "last_poll_at": "2026-07-15T14:30:00Z",
-  "next_poll_at": "2026-07-15T14:31:00Z"
+  "next_poll_at": "2026-07-15T14:31:00Z",
+  "as_of": "2026-07-15T14:30:00Z",
+  "last_account": null
 }
 ```
 
 ### GET /api/accounts/:email/latest
+
 Latest snapshot for a specific account, with assumed-refill applied.
 
 **Response:**
+
 ```json
 {
   "email": "user@example.com",
@@ -112,13 +143,16 @@ Latest snapshot for a specific account, with assumed-refill applied.
 ```
 
 ### GET /api/accounts/:email/snapshots?limit=50&before=
+
 Paginated snapshot history for an account, newest-first.
 
 **Query params:**
+
 - `limit` - result count, clamped to [1, 200], default 50
 - `before` - RFC3339 timestamp; return snapshots captured before this time, default now
 
 **Response:**
+
 ```json
 {
   "email": "user@example.com",
@@ -135,9 +169,11 @@ Paginated snapshot history for an account, newest-first.
 ## Models
 
 ### GET /api/models/latest
+
 Latest model quotas across all accounts, deduplicated by model ID.
 
 **Response:**
+
 ```json
 {
   "models": [
@@ -157,14 +193,17 @@ Latest model quotas across all accounts, deduplicated by model ID.
 ```
 
 ### GET /api/accounts/:email/models/current
+
 Current model quotas for one account, fallback to newest non-null per model within 14 days.
 
 **Response:** Same as `/api/models/latest` but filtered to one email.
 
 ### GET /api/accounts/:email/sparklines
+
 Per-model time series (7-day lookback) for dashboard inline charts.
 
 **Response:**
+
 ```json
 {
   "email": "user@example.com",
@@ -175,7 +214,7 @@ Per-model time series (7-day lookback) for dashboard inline charts.
       "points": [
         {
           "captured_at": "2026-07-08T10:00:00Z",
-          "remaining_fraction": 0.50
+          "remaining_fraction": 0.5
         },
         {
           "captured_at": "2026-07-08T11:00:00Z",
@@ -196,13 +235,16 @@ Null fractions are included so the frontend can render gaps in polling.
 ## Analytics
 
 ### GET /api/analytics/timeseries?range=7d&agg=avg
+
 Per-day remaining quota trend by provider.
 
 **Query params:**
+
 - `range` - `7d` or `30d`, default `7d`
 - `agg` - `avg` or `min`, default `avg`
 
 **Response:**
+
 ```json
 {
   "range": "7d",
@@ -212,14 +254,14 @@ Per-day remaining quota trend by provider.
       "date": "2026-07-08",
       "providers": {
         "Gemini": 0.75,
-        "Anthropic": 0.50,
+        "Anthropic": 0.5,
         "OpenAI": null
       }
     },
     {
       "date": "2026-07-09",
       "providers": {
-        "Gemini": 0.70,
+        "Gemini": 0.7,
         "Anthropic": 0.52,
         "OpenAI": null
       }
@@ -231,9 +273,11 @@ Per-day remaining quota trend by provider.
 Each provider is present in every day's map; null means no data for that provider on that day.
 
 ### GET /api/analytics/breakdown
+
 Model consumption analysis (starting fraction − current fraction) for the current reset cycle.
 
 **Response:**
+
 ```json
 {
   "rows": [
@@ -264,16 +308,18 @@ Model consumption analysis (starting fraction − current fraction) for the curr
 `assumed_refilled: true` indicates the cycle has ended; the row shows full capacity (current_fraction: 1.0).
 
 ### GET /api/analytics/stats
+
 Headline figures (polls this week, most depleted model, healthiest account, next reset).
 
 **Response:**
+
 ```json
 {
   "total_polls_this_week": 672,
   "most_depleted_model": {
     "email": "user@example.com",
     "label": "Claude 3.5 Sonnet",
-    "remaining_fraction": 0.10
+    "remaining_fraction": 0.1
   },
   "account_most_remaining": {
     "email": "user@example.com",
@@ -290,9 +336,11 @@ Headline figures (polls this week, most depleted model, healthiest account, next
 ## Timeline
 
 ### GET /api/accounts/:email/timeline
+
 Inferred login/logout events with session-boundary quota snapshots (7-day lookback).
 
 **Response:**
+
 ```json
 {
   "email": "user@example.com",
@@ -302,7 +350,7 @@ Inferred login/logout events with session-boundary quota snapshots (7-day lookba
       "at": "2026-07-15T09:00:00Z",
       "quota": {
         "Gemini": 0.75,
-        "Anthropic": 0.50,
+        "Anthropic": 0.5,
         "OpenAI": null
       }
     },
@@ -310,7 +358,7 @@ Inferred login/logout events with session-boundary quota snapshots (7-day lookba
       "type": "logout",
       "at": "2026-07-15T17:30:00Z",
       "quota": {
-        "Gemini": 0.60,
+        "Gemini": 0.6,
         "Anthropic": 0.45,
         "OpenAI": null
       }
@@ -332,11 +380,11 @@ All errors return JSON with HTTP status codes:
 }
 ```
 
-| Status | Meaning |
-|--------|---------|
-| 400 | Invalid query parameter or request |
-| 404 | Account/model not found |
-| 500 | Internal error (database, encoding) |
+| Status | Meaning                             |
+| ------ | ----------------------------------- |
+| 400    | Invalid query parameter or request  |
+| 404    | Account/model not found             |
+| 500    | Internal error (database, encoding) |
 
 ## CORS
 
