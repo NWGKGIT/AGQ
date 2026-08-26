@@ -52,7 +52,7 @@ Download the Windows x64 ZIP, extract it, and run `AGQ.exe`.
 
 ## Build From Source
 
-Requirements: Go 1.26+, Node.js 24+, Wails v2.13.0, and platform webview dependencies. Linux builds require GTK3 and WebKitGTK 4.1. Windows builds require a supported Go and C compiler toolchain.
+Requirements: Go 1.26+, Node.js 24+, Wails v2.15.0, and platform webview dependencies. Linux builds require GTK3 and WebKitGTK 4.1. Windows builds require a supported Go and C compiler toolchain.
 
 ```sh
 npm ci --prefix desktop/frontend

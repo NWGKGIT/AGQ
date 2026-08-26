@@ -4,7 +4,7 @@ The desktop application is a Wails v2 shell around the AGQ monitoring runtime. I
 
 ## Stack
 
-- Go and Wails v2.13.0
+- Go and Wails v2.15.0
 - React 19, TypeScript, and Vite
 - Tailwind CSS v4 and Radix UI primitives
 - TanStack Query and Recharts

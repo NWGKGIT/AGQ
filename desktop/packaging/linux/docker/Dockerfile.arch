@@ -8,7 +8,7 @@ RUN ln -sf ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
 ENV GOROOT=/usr/local/go
 ENV PATH="/usr/local/go/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin"
 RUN pacman -Syu --noconfirm && pacman -S --noconfirm gcc pkgconf gtk3 webkit2gtk-4.1 base-devel
-RUN GOBIN=/usr/local/bin go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
+RUN GOBIN=/usr/local/bin go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
 RUN useradd -m builder
 WORKDIR /src
 COPY . .

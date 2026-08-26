@@ -26,7 +26,7 @@ before release.
 Requirements:
 
 - Windows 10/11 SDK (`makeappx.exe`, and `signtool.exe` for sideload signing)
-- Go, Node.js, and Wails v2.13.0
+- Go, Node.js, and Wails v2.15.0
 - the exact package identity and publisher values assigned in Partner Center
 
 From a Windows PowerShell prompt in `desktop/`:
@@ -95,9 +95,9 @@ Native packages are built in Docker containers matching their target families:
 VERSION=1.0.0 ./packaging/linux/build-native-packages.sh
 ```
 
-This emits an x86_64 package built on Debian 12, an RPM built on Fedora 42,
+`VERSION` is required when invoking the Makefile targets. This emits an x86*64 package built on Debian 12, an RPM built on Fedora 42,
 and a package for current Arch Linux under `desktop/build/packages`.
-Install downloaded files with `apt install ./agq_<version>_amd64.deb`,
+Install downloaded files with `apt install ./agq*<version>\_amd64.deb`,
 `dnf install ./agq-<version>-1.x86_64.rpm`, or
 `pacman -U ./agq-<version>-1-x86_64.pkg.tar.zst`. Packages install only the
 desktop application and declare GTK3/WebKitGTK runtime dependencies.

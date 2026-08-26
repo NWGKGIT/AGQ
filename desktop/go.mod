@@ -47,3 +47,4 @@ require (
 )
 
 // replace github.com/wailsapp/wails/v2 v2.13.0 => /home/nahomw/go/pkg/mod
+

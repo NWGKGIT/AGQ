@@ -53,7 +53,7 @@ jobs:
         env:
           RELEASE_VERSION: ${{ needs.release-metadata.outputs.version }}
         run: |
-          go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
           npm ci --prefix desktop/frontend
           npm run build --prefix desktop/frontend
           Push-Location desktop
@@ -104,7 +104,7 @@ jobs:
           $goBin = Join-Path $env:RUNNER_TEMP 'go-bin'
           New-Item -ItemType Directory -Path $goBin -Force | Out-Null
           $env:GOBIN = $goBin
-          go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
           Add-Content -Path $env:GITHUB_PATH -Value $goBin
           npm ci --prefix desktop/frontend
 

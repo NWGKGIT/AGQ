@@ -4,7 +4,7 @@
 
 - Go 1.26+
 - Node.js 24+
-- Wails v2.13.0
+- Wails v2.15.0
 - Linux: GTK3 and WebKitGTK 4.1 development packages
 - Windows: Go, WebView2, and a supported C compiler toolchain
 
@@ -35,7 +35,7 @@ make docker-test
 
 ## Packaging
 
-Linux packages (Docker is required; `VERSION` defaults to `1.0.0`):
+Linux packages (Docker is required; `VERSION` is required):
 
 ```sh
 VERSION=1.0.0 make desktop-linux-packages
