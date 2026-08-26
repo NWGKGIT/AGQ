@@ -177,39 +177,9 @@ jobs:
             desktop/build/packages/${{ matrix.artifact }}.sha256
           if-no-files-found: error
 
-  linux-appimage:
-    needs: release-metadata
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build AppImage
-        env:
-          VERSION: ${{ needs.release-metadata.outputs.version }}
-        run: ./desktop/packaging/linux/build-appimage.sh
-      - name: Test AppImage extraction
-        env:
-          VERSION: ${{ needs.release-metadata.outputs.version }}
-        run: ./desktop/packaging/linux/test-appimage.sh
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: AGQ-linux-x86_64
-          path: |
-            desktop/build/appimage/*.AppImage
-            desktop/build/appimage/*.sha256
-          if-no-files-found: error
-
   release:
-    needs:
-      [
-        release-metadata,
-        windows-portable,
-        windows-msix,
-        linux-native,
-        linux-appimage,
-      ]
-    if: ${{ always() && needs.windows-portable.result == 'success' && needs.linux-native.result == 'success' && needs.linux-appimage.result == 'success' && (needs.windows-msix.result == 'success' || needs.windows-msix.result == 'skipped') }}
+    needs: [release-metadata, windows-portable, windows-msix, linux-native]
+    if: ${{ always() && needs.windows-portable.result == 'success' && needs.linux-native.result == 'success' && (needs.windows-msix.result == 'success' || needs.windows-msix.result == 'skipped') }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/download-artifact@v4

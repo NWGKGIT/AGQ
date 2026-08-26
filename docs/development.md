@@ -42,11 +42,7 @@ VERSION=1.0.0 make desktop-linux-packages
 ```
 
 Build a single format with `make desktop-deb`, `make desktop-rpm`, or
-`make desktop-arch`. `make desktop-appimage` builds the versioned fallback
-AppImage and automatically uses an Ubuntu container when host GTK/WebKit
-development packages are unavailable.
-
-The packaging script requires `linuxdeploy-x86_64.AppImage` and `appimagetool-x86_64.AppImage` on `PATH` (or the command override variables documented in [`desktop/packaging/README.md`](../desktop/packaging/README.md)).
+`make desktop-arch`.
 
 Windows MSIX packaging runs in GitHub Actions. It requires the protected repository variables `WINDOWS_PACKAGE_IDENTITY_NAME`, `WINDOWS_PACKAGE_PUBLISHER`, and `WINDOWS_PUBLISHER_DISPLAY_NAME`.
 
@@ -59,13 +55,12 @@ Users should choose a version from the [GitHub Releases](https://github.com/NWGK
 | Debian or Ubuntu                    | `agq_<version>_amd64.deb`            |
 | Fedora                              | `agq-<version>-1.x86_64.rpm`         |
 | Arch Linux                          | `agq-<version>-1-x86_64.pkg.tar.zst` |
-| Other Linux distributions           | `AGQ-<version>-x86_64.AppImage`      |
 | Windows                             | `AGQ-<version>-windows-x64.zip`      |
 | Microsoft Store or sideload testing | `AGQ-<version>.0-x64.msix`           |
 
 The MSIX is included only when the repository has all three protected Windows
-package identity variables configured. Every Linux package and AppImage also
-includes a `.sha256` checksum file.
+package identity variables configured. Every native Linux package includes a
+`.sha256` checksum file.
 
 Maintainers can publish a release in either of these ways:
 

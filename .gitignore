@@ -12,8 +12,6 @@
 /dist/
 /build/
 desktop/build/bin/
-desktop/build/appimage/
-desktop/build/appimage-tools/
 desktop/build/packages/
 desktop/build/msix/
 desktop/frontend/dist/
