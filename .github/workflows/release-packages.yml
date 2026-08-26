@@ -58,6 +58,7 @@ jobs:
           $env:GOBIN = $goBin
           go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
           Add-Content -Path $env:GITHUB_PATH -Value $goBin
+          $env:PATH = "$goBin;$env:PATH"
           npm ci --prefix desktop/frontend
           npm run build --prefix desktop/frontend
           Push-Location desktop
