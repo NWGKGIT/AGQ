@@ -65,7 +65,8 @@ Add capabilities only when a shipped feature demonstrably requires them.
 ## Linux x86_64 AppImage
 
 Install the Wails Linux build prerequisites, `linuxdeploy-x86_64.AppImage`, and
-`appimagetool-x86_64.AppImage` on an x86_64 build host. Put both tools on
+the `appimagetool-x86_64.AppImage` release from
+[`appimagetool`](https://github.com/AppImage/appimagetool/releases) on an x86_64 build host. The script downloads either tool when it is not already on
 `PATH`, then run:
 
 ```sh
@@ -79,29 +80,9 @@ AppImage plus SHA-256 file. It does not install systemd units or modify the
 host system.
 
 Validate the artifact on clean Ubuntu LTS and Arch installations under X11
-and Wayland. WebKitGTK remains a compatibility-sensitive dependency; inspect
+and Wayland. AppImage launch still depends on the host's FUSE support; users
+without the FUSE 2 compatibility library can use `APPIMAGE_EXTRACT_AND_RUN=1`. WebKitGTK remains a compatibility-sensitive dependency; inspect
 the AppDir produced by linuxdeploy and run smoke tests on the oldest supported
 distribution before publishing. AppImage signing and zsync update metadata
 are deferred until the project has a stable release repository URL and signing
 key; do not invent either value in source control.
-
-## Linux Flatpak
-
-Flatpak is the preferred alternative on systems where AppImage's bundled
-WebKitGTK libraries are unreliable. Install `flatpak-builder`, the GNOME 48
-runtime and SDK, and the matching Go SDK extension, then run:
-
-```sh
-make desktop-flatpak
-```
-
-The script stages an offline build, compiles against the Flatpak runtime, and
-emits `desktop/build/AGQ.flatpak` plus its SHA-256 file. Install it with:
-
-```sh
-flatpak install --user desktop/build/AGQ.flatpak
-```
-
-The sandbox persists only `~/.agq`, allows network access for local language
-server discovery and the optional loopback API, and supports Wayland with an
-X11 fallback.

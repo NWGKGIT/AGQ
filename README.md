@@ -32,13 +32,9 @@ chmod +x AGQ-x86_64.AppImage
 ./AGQ-x86_64.AppImage
 ```
 
-Alternatively, install the Flatpak release. This uses a managed WebKitGTK
-runtime and is recommended when the AppImage is incompatible with the host:
-
-```sh
-flatpak install --user AGQ.flatpak
-flatpak run io.github.NWGKGIT.AGQ
-```
+AppImages use the host's FUSE integration when mounted. If your distribution
+does not provide `libfuse.so.2`, run the AppImage with
+`APPIMAGE_EXTRACT_AND_RUN=1`.
 
 ### Windows
 
@@ -59,7 +55,6 @@ Useful targets:
 make desktop-dev       # Wails development mode
 make desktop-test      # Desktop Go tests, frontend tests, and build
 make desktop-appimage  # Linux x86_64 AppImage
-make desktop-flatpak   # Linux Flatpak bundle
 make test              # Core Go tests
 make docker-test       # Core tests in Docker
 ```

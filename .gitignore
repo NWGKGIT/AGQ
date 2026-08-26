@@ -13,6 +13,7 @@
 /build/
 desktop/build/bin/
 desktop/build/appimage/
+desktop/build/appimage-tools/
 desktop/build/msix/
 desktop/frontend/dist/
 desktop/frontend/node_modules/
