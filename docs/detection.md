@@ -1,6 +1,6 @@
 # Process Detection
 
-AGQ discovers local Antigravity language server processes by scanning the operating system's process table every 15 seconds. This document describes the detection pipeline and platform-specific implementations.
+AGQ discovers local Antigravity language server processes by scanning the operating system's process table every 5 seconds. This document describes the detection pipeline and platform-specific implementations.
 
 ## Discovery Pipeline
 
@@ -22,14 +22,14 @@ A process is identified as an Antigravity language server if it meets all three 
 
 The detector extracts these flags from process arguments:
 
-| Flag | Purpose | Required |
-|------|---------|----------|
-| `--csrf_token` | CSRF token for authenticating `GetUserStatus` requests | Yes |
-| `--workspace_id` | Workspace identifier (informational) | No |
-| `--cloud_code_endpoint` | Cloud Code API endpoint | No |
-| `--https_server_port` | Declared HTTPS server port | No |
-| `--lsp_port` | Declared LSP server port | No |
-| `--extension_server_port` | Declared extension server port | No |
+| Flag                      | Purpose                                                | Required |
+| ------------------------- | ------------------------------------------------------ | -------- |
+| `--csrf_token`            | CSRF token for authenticating `GetUserStatus` requests | Yes      |
+| `--workspace_id`          | Workspace identifier (informational)                   | No       |
+| `--cloud_code_endpoint`   | Cloud Code API endpoint                                | No       |
+| `--https_server_port`     | Declared HTTPS server port                             | No       |
+| `--lsp_port`              | Declared LSP server port                               | No       |
+| `--extension_server_port` | Declared extension server port                         | No       |
 
 Flags may use `--name=value` or `--name value` syntax.
 
@@ -58,6 +58,7 @@ Calls `GetExtendedTcpTable()` Windows API with `TCP_TABLE_OWNER_PID_ALL` filter 
 Once a set of candidate ports is known, AGQ probes each one to find the active endpoint.
 
 **Probe sequence (first-match wins):**
+
 1. Iterate ports in order (newest-first, via PID sorting)
 2. For each port, try HTTPS first, then HTTP
 3. Send POST to `http(s)://127.0.0.1:[port]/exa.language_server_pb.LanguageServerService/GetUserStatus`
@@ -72,17 +73,14 @@ Once a set of candidate ports is known, AGQ probes each one to find the active e
 
 ### Account Switch Scenario
 
-When a user switches accounts in Antigravity:
-1. Old language server process remains running (not immediately killed)
-2. New language server process spawns with new PID and CSRF token
-3. At the next 15-second scan:
-   - Both old and new PIDs are detected
-   - Both are probed; PID sort prefers newer (higher) PIDs
-   - Old process may still respond with old account email
-   - Newer PID is tried first, so new account usually wins
-   - But if old process responds faster or is earlier in port list, stale data may be served
+When a user switches accounts in Antigravity, the detector selects the newest
+valid Antigravity process under the newest Antigravity root. The poller keeps
+that process's account as the single confirmed active account. If the process
+PID does not change, the existing process is polled again and the new email is
+accepted when `GetUserStatus` reports it. Older accounts remain in history.
 
-**Limitation:** AGQ cannot distinguish "which process is current" without Antigravity exposing that information. Restarting Antigravity (not AGQ) kills stale processes and forces fresh account data.
+If stale background processes remain and the new session is not unambiguous,
+restart Antigravity to force a clean process set.
 
 ## Freshness and Refresh Interval
 

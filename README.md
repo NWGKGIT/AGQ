@@ -25,6 +25,12 @@ AGQ is unofficial and local-only. It probes loopback services, uses the language
 
 Download the latest artifacts from [GitHub Releases](https://github.com/NWGKGIT/AGQ/releases).
 
+Select the release version you want, then choose the artifact matching your
+platform. Linux packages include Debian (`.deb`), Fedora (`.rpm`), Arch
+(`.pkg.tar.zst`), and an AppImage fallback. Windows releases provide an x64
+ZIP; the MSIX is available when Store package identity configuration is
+enabled for that release.
+
 ### Linux
 
 Native packages are the recommended installation method:

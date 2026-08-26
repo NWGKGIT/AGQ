@@ -7,6 +7,7 @@ AGQ's frontend is a React SPA (single-page app) bundled with the Wails desktop s
 **Theme:** Dark mode by default, light mode and system preference available. CSS variables control all colors and spacing.
 
 **Chart colors** (CSS variables):
+
 - `--chart-gemini` - Blue-purple (oklch 0.623 0.19 259.8 dark, 0.678 0.16 light)
 - `--chart-anthropic` - Orange (oklch 0.705 0.15 40.24 dark, 0.745 0.14 light)
 - `--chart-openai` - Cyan (oklch 0.696 0.14 165.46 dark, 0.741 0.13 light)
@@ -18,6 +19,7 @@ AGQ's frontend is a React SPA (single-page app) bundled with the Wails desktop s
 ### Overview Page (`src/pages/overview.tsx`)
 
 Landing page showing:
+
 - **Status Header** - daemon state, active account, last poll time, next reset
 - **Provider Strip** - per-provider aggregate: average remaining quota, model count, account count
 - **Account Cards** - one card per account with latest model breakdown and quotas
@@ -25,6 +27,7 @@ Landing page showing:
 ### Analytics Page (`src/pages/analytics.tsx`)
 
 Data insights:
+
 - **Stat Cards** - headline metrics (next reset, most depleted model, healthiest account)
 - **Usage Chart** - per-day remaining quota trend (7d/30d, avg/min aggregation)
 - **Breakdown Table** - consumption per account/model, sortable by consumed/model/provider
@@ -32,6 +35,7 @@ Data insights:
 ### Settings Page (`src/pages/settings.tsx`)
 
 Configuration:
+
 - Email masking toggle (masks screenshots for privacy)
 - API exposure toggle (enables TCP listener)
 - Theme selector
@@ -40,6 +44,7 @@ Configuration:
 
 ```
 src/
+├── App.tsx                     # Main app shell and page selection
 ├── components/
 │   ├── ui/              # shadcn primitives (badge, button, card, etc.)
 │   ├── overview/
@@ -52,7 +57,7 @@ src/
 │   │   ├── stat-cards.tsx         # Headline metrics
 │   │   └── breakdown-table.tsx    # Model consumption breakdown
 │   ├── theme-provider.tsx         # Context + localStorage persistence
-│   └── app.tsx                    # Main app shell
+│   └── layout/                    # Sidebar and application layout
 ├── lib/
 │   ├── api.ts                     # React Query hooks (useTimeseries, etc.)
 │   ├── providers.ts               # Provider classification & grouping
@@ -68,28 +73,33 @@ src/
 ## Data Flow
 
 **Polling cadence:**
-- All live monitor data: 2-second fallback polling, plus immediate Wails update events
-- All other queries: 30 seconds (half the backend's 60s poll interval)
+
+- Status and account state: 2-second polling, plus immediate Wails update events
+- Other monitor data: 2-second polling, plus immediate Wails update events
 
 **Data fetching** uses React Query (`@tanstack/react-query`):
+
 - Automatic refetch on configured intervals
 - Stale-while-revalidate caching
-- Automatic retry with exponential backoff
+- Failed queries are surfaced immediately (`retry: false`); the next polling interval retries them
 - Request deduplication
 
 **Example:** `useTimeseries(range, agg)` hook:
+
 ```typescript
-export function useTimeseries(range: '7d' | '30d', agg: 'avg' | 'min') {
+export function useTimeseries(range: "7d" | "30d", agg: "avg" | "min") {
   return useQuery({
-    queryKey: ['timeseries', range, agg],
+    queryKey: ["timeseries", range, agg],
     queryFn: () => GetTimeseries(range, agg),
-    refetchInterval: REFETCH_MS,  // 2 seconds; events normally update sooner
+    refetchInterval: REFETCH_MS, // 2 seconds; events normally update sooner
     retry: false,
-  })
+  });
 }
 ```
 
-When data changes in the backend, the frontend refetches automatically and updates. If the monitor becomes unreachable, hooks return `isPending: true` and display a skeleton loader.
+When data changes in the backend, the frontend invalidates and refetches its
+queries through the Wails update event. If the monitor becomes unreachable,
+the hooks expose the error and the UI shows the offline state.
 
 ## Provider Classification
 
@@ -97,14 +107,19 @@ All analytics endpoints and UI components group models by provider using consist
 
 ```typescript
 export function classifyProvider(label: string): Provider | null {
-  const l = label.toLowerCase()
-  if (l.includes('gemini')) return 'Gemini'
-  if (l.includes('claude') || l.includes('anthropic') || 
-      l.includes('sonnet') || l.includes('opus') || l.includes('haiku'))
-    return 'Anthropic'
-  if (l.includes('gpt') || l.includes('openai') || l.includes('codex'))
-    return 'OpenAI'
-  return null
+  const l = label.toLowerCase();
+  if (l.includes("gemini")) return "Gemini";
+  if (
+    l.includes("claude") ||
+    l.includes("anthropic") ||
+    l.includes("sonnet") ||
+    l.includes("opus") ||
+    l.includes("haiku")
+  )
+    return "Anthropic";
+  if (l.includes("gpt") || l.includes("openai") || l.includes("codex"))
+    return "OpenAI";
+  return null;
 }
 ```
 
@@ -113,6 +128,7 @@ This mirrors the backend's `classifyProvider()` in `internal/api/provider.go` so
 ## Charts
 
 **Usage Chart** (`src/components/analytics/usage-chart.tsx`):
+
 - Recharts `AreaChart` with three filled areas (one per provider)
 - Toggles for range (7d / 30d) and aggregation (avg / min)
 - Tooltips on hover, legend at bottom
@@ -121,12 +137,17 @@ This mirrors the backend's `classifyProvider()` in `internal/api/provider.go` so
 **Data transformation:** Backend returns `days[].providers{Gemini, Anthropic, OpenAI}` with `null` for absent providers. Frontend maps to chart-friendly structure:
 
 ```typescript
-const chartData = data.days.map(day => ({
+const chartData = data.days.map((day) => ({
   date: formatDate(day.date),
-  Gemini: day.providers['Gemini'] != null ? day.providers['Gemini'] * 100 : null,
-  Anthropic: day.providers['Anthropic'] != null ? day.providers['Anthropic'] * 100 : null,
-  OpenAI: day.providers['OpenAI'] != null ? day.providers['OpenAI'] * 100 : null,
-}))
+  Gemini:
+    day.providers["Gemini"] != null ? day.providers["Gemini"] * 100 : null,
+  Anthropic:
+    day.providers["Anthropic"] != null
+      ? day.providers["Anthropic"] * 100
+      : null,
+  OpenAI:
+    day.providers["OpenAI"] != null ? day.providers["OpenAI"] * 100 : null,
+}));
 ```
 
 ## Error Handling
@@ -152,6 +173,7 @@ const chartData = data.days.map(day => ({
 ## Development
 
 **Local dev:**
+
 ```bash
 make desktop-dev
 ```
