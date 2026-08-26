@@ -1,0 +1,21 @@
+FROM golang:1.26-bookworm@sha256:659cc38c1a394eeb4dd7e31fff6df128bd33444dcc7afd70e3bed5225749dbc0 AS go-toolchain
+FROM node:24-bookworm@sha256:107ceb6ad85808049dccef12414bf17b08eceb299eaf755c0339dc5fc8958d6b AS node-toolchain
+FROM fedora:42@sha256:7c63468daf71fdc5bda3699cd483b169bb995b5137265d5ffe8f04e2ce87fbb8
+COPY --from=go-toolchain /usr/local/go /usr/local/go
+COPY --from=node-toolchain /usr/local/bin/node /usr/local/bin/node
+COPY --from=node-toolchain /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
+COPY --from=node-toolchain /usr/local/lib/node_modules/corepack /usr/local/lib/node_modules/corepack
+RUN ln -s node /usr/local/bin/nodejs \
+    && ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+    && ln -s ../lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack
+ENV GOROOT=/usr/local/go
+ENV PATH="/usr/local/go/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin"
+RUN dnf install -y gcc gcc-c++ make pkgconf-pkg-config util-linux gtk3-devel webkit2gtk4.1-devel rpm-build ca-certificates shadow-utils \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
+RUN GOBIN=/usr/local/bin go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
+RUN useradd -m builder
+WORKDIR /src
+COPY . .
+CMD ["bash", "-c", "npm ci --prefix desktop/frontend && bash desktop/packaging/linux/package-rpm.sh"]

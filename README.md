@@ -27,9 +27,19 @@ Download the latest artifacts from [GitHub Releases](https://github.com/NWGKGIT/
 
 ### Linux
 
+Native packages are the recommended installation method:
+
 ```sh
-chmod +x AGQ-x86_64.AppImage
-./AGQ-x86_64.AppImage
+sudo apt install ./agq_<version>_amd64.deb
+sudo dnf install ./agq-<version>-1.x86_64.rpm
+sudo pacman -U ./agq-<version>-1-x86_64.pkg.tar.zst
+```
+
+The Debian package is built on Debian 12 for Debian 12 and compatible Ubuntu releases. The RPM is built for Fedora 42, and the Arch package targets current Arch Linux. An AppImage remains available for other distributions:
+
+```sh
+chmod +x AGQ-<version>-x86_64.AppImage
+./AGQ-<version>-x86_64.AppImage
 ```
 
 AppImages use the host's FUSE integration when mounted. If your distribution
@@ -54,7 +64,8 @@ Useful targets:
 ```sh
 make desktop-dev       # Wails development mode
 make desktop-test      # Desktop Go tests, frontend tests, and build
-make desktop-appimage  # Linux x86_64 AppImage
+make desktop-linux-packages # Linux .deb/.rpm/.pkg.tar.zst
+make desktop-appimage       # Linux x86_64 fallback AppImage
 make test              # Core Go tests
 make docker-test       # Core tests in Docker
 ```

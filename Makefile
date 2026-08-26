@@ -5,7 +5,17 @@ UNIT     := agq.service
 CMD      := ./cmd/agq-daemon
 BUILDFLAGS ?= -buildvcs=false
 
-.PHONY: build test install enable disable uninstall clean run desktop-build desktop-dev desktop-test desktop-appimage brand-assets docker-build docker-test
+# Release version.
+#
+# Automatically uses the latest release tag such as v1.1.0 -> 1.1.0.
+# Override explicitly with:
+#   make VERSION=1.2.0 desktop-rpm
+VERSION ?= $(shell git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null | sed 's/^v//')
+
+.PHONY: build test install enable disable uninstall clean run logs status \
+        desktop-build desktop-dev desktop-test desktop-appimage \
+        desktop-deb desktop-rpm desktop-arch desktop-linux-packages \
+        brand-assets docker-build docker-test check-version
 
 ## build - compile the daemon binary
 build:
@@ -45,7 +55,8 @@ disable:
 	systemctl --user disable --now $(UNIT)
 
 ## uninstall - remove binary and unit file
-uninstall: disable
+uninstall:
+	-systemctl --user disable --now $(UNIT)
 	sudo rm -f $(INSTALL)
 	rm -f $(UNIT_DIR)/$(UNIT)
 	systemctl --user daemon-reload
@@ -54,7 +65,7 @@ uninstall: disable
 clean:
 	rm -f $(BINARY)
 
-## desktop-build - build the desktop app (requires wails CLI)
+## desktop-build - build the desktop app
 desktop-build:
 	cd desktop && wails build -tags webkit2_41
 
@@ -72,9 +83,33 @@ desktop-test:
 brand-assets:
 	cd desktop && ./packaging/generate-assets.sh
 
+## check-version - ensure a valid package version exists
+check-version:
+	@test -n "$(VERSION)" || { \
+		echo "ERROR: No release version found."; \
+		echo "Use VERSION=1.1.0 or create a release tag such as v1.1.0."; \
+		exit 1; \
+	}
+
 ## desktop-appimage - build the x86_64 AppImage release artifact
-desktop-appimage:
-	cd desktop && ./packaging/linux/build-appimage.sh
+desktop-appimage: check-version
+	cd desktop && VERSION=$(VERSION) ./packaging/linux/build-appimage.sh
+
+## desktop-deb - build the Debian package
+desktop-deb: check-version
+	cd desktop && VERSION=$(VERSION) ./packaging/linux/build-native-packages.sh deb
+
+## desktop-rpm - build the RPM package
+desktop-rpm: check-version
+	cd desktop && VERSION=$(VERSION) ./packaging/linux/build-native-packages.sh rpm
+
+## desktop-arch - build the Arch package
+desktop-arch: check-version
+	cd desktop && VERSION=$(VERSION) ./packaging/linux/build-native-packages.sh arch
+
+## desktop-linux-packages - build all native Linux packages
+desktop-linux-packages: check-version
+	cd desktop && VERSION=$(VERSION) ./packaging/linux/build-native-packages.sh
 
 ## logs - tail the daemon log
 logs:

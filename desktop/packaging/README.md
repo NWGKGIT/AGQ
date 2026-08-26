@@ -86,3 +86,18 @@ the AppDir produced by linuxdeploy and run smoke tests on the oldest supported
 distribution before publishing. AppImage signing and zsync update metadata
 are deferred until the project has a stable release repository URL and signing
 key; do not invent either value in source control.
+
+## Linux native packages
+
+Native packages are built in Docker containers matching their target families:
+
+```sh
+VERSION=1.0.0 ./packaging/linux/build-native-packages.sh
+```
+
+This emits an x86_64 package built on Debian 12, an RPM built on Fedora 42,
+and a package for current Arch Linux under `desktop/build/packages`.
+Install downloaded files with `apt install ./agq_<version>_amd64.deb`,
+`dnf install ./agq-<version>-1.x86_64.rpm`, or
+`pacman -U ./agq-<version>-1-x86_64.pkg.tar.zst`. Packages install only the
+desktop application and declare GTK3/WebKitGTK runtime dependencies.

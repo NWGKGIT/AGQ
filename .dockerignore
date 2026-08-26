@@ -1,0 +1,8 @@
+.git
+.agents
+.codex
+desktop/build
+desktop/frontend/node_modules
+desktop/frontend/dist
+*.db
+*.log

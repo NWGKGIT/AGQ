@@ -1,0 +1,14 @@
+FROM golang:1.26-bookworm@sha256:659cc38c1a394eeb4dd7e31fff6df128bd33444dcc7afd70e3bed5225749dbc0 AS go-toolchain
+FROM node:24-bookworm@sha256:107ceb6ad85808049dccef12414bf17b08eceb299eaf755c0339dc5fc8958d6b AS node-toolchain
+FROM debian:12@sha256:2f65600e1252c5649d2213e1d1ea4d74253d26514dc6530102a875e429245929
+COPY --from=go-toolchain /usr/local/go /usr/local/go
+COPY --from=node-toolchain /usr/local /usr/local
+ENV GOROOT=/usr/local/go
+ENV PATH="/usr/local/go/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin"
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev dpkg-dev ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+RUN GOBIN=/usr/local/bin go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
+WORKDIR /src
+COPY . .
+CMD ["bash", "-c", "export PATH=$PATH:/usr/local/go/bin && npm ci --prefix desktop/frontend && bash desktop/packaging/linux/package-deb.sh"]
+

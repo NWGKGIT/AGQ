@@ -35,11 +35,16 @@ make docker-test
 
 ## Packaging
 
-Linux AppImage:
+Linux packages (Docker is required; `VERSION` defaults to `1.0.0`):
 
 ```sh
-make desktop-appimage
+VERSION=1.0.0 make desktop-linux-packages
 ```
+
+Build a single format with `make desktop-deb`, `make desktop-rpm`, or
+`make desktop-arch`. `make desktop-appimage` builds the versioned fallback
+AppImage and automatically uses an Ubuntu container when host GTK/WebKit
+development packages are unavailable.
 
 The packaging script requires `linuxdeploy-x86_64.AppImage` and `appimagetool-x86_64.AppImage` on `PATH` (or the command override variables documented in [`desktop/packaging/README.md`](../desktop/packaging/README.md)).
 
